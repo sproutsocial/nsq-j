@@ -1,5 +1,9 @@
 package com.sproutsocial.nsq;
 
+/**
+ * nsqd settings that can't be changed by the client.
+ * returned in response to IDENTIFY command.
+ */
 class ServerConfig extends Config {
 
     private String version;

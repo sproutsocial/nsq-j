@@ -9,7 +9,8 @@ public class DirectSubscriber extends Subscriber {
 
     private final Set<HostAndPort> nsqds = new HashSet<HostAndPort>();
 
-    public DirectSubscriber(String... nsqdHosts) {
+    public DirectSubscriber(int checkHostsIntervalSecs, String... nsqdHosts) {
+        super(checkHostsIntervalSecs);
         for (String h : nsqdHosts) {
             nsqds.add(HostAndPort.fromString(h).withDefaultPort(4150));
         }

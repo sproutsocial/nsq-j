@@ -1,24 +1,27 @@
 package com.sproutsocial.nsq;
 
-import com.google.common.collect.Maps;
 import com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
-class SubConnection extends Connection {
+class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubConnectionMXBean {
 
     private final MessageHandler handler;
+    private final FailedMessageHandler failedMessageHandler;
     private final ExecutorService executor;
     private final Subscription subscription;
-    private final Map<String, Long> inFlight = Maps.newHashMap();
+    private final int maxAttemps;
+    private final int maxFlushDelayMillis;
+    private int inFlight = 0;
     private int maxInFlight = 1;
-    private int maxUnflushed = maxInFlight / 3;
-    private int rdy = 0;
+    private int maxUnflushed = 0;
+
+    private int subConId = 0;
+    private long finishedCount = 0;
+    private long requeuedCount = 0;
 
     private static final Logger logger = LoggerFactory.getLogger(SubConnection.class);
 
@@ -26,78 +29,78 @@ class SubConnection extends Connection {
         super(host);
         Subscriber subscriber = subscription.getSubscriber();
         this.handler = subscription.getHandler();
-        this.executor = subscriber.getExecutor();
+        this.failedMessageHandler = subscriber.getFailedMessageHandler();
+        this.executor = Client.getExecutor();
         this.subscription = subscription;
+        this.maxAttemps = subscriber.getMaxAttempts();
+        this.maxFlushDelayMillis = subscriber.getMaxFlushDelayMillis();
 
         scheduleAtFixedRate(new Runnable() {
             public void run() {
                 delayedFlush();
             }
-        }, subscriber.getMaxFlushDelayMillis(), subscriber.getMaxFlushDelayMillis());
-        int checkInterval = Math.min(120000, Math.max(20000, (int) (msgTimeout * 0.9)));
-        scheduleAtFixedRate(new Runnable() {
-            public void run() {
-                checkMsgTimeout();
-            }
-        }, checkInterval, checkInterval);
+        }, maxFlushDelayMillis / 2, maxFlushDelayMillis / 2, false);
     }
 
-    public synchronized void finish(String id) throws IOException {
-        writeCommand("FIN", id);
-        inFlight.remove(id);
-        checkReady();
-        checkFlush();
+    public synchronized void finish(String id) {
+        try {
+            writeCommand("FIN", id);
+            finishedCount++;
+            messageDone();
+        }
+        catch (IOException e) {
+            logger.error("finish error:{}", host, e);
+            close();
+        }
     }
 
-    public synchronized void requeue(String id) throws IOException {
-        writeCommand("REQ", id, 0);
-        inFlight.remove(id);
-        checkReady();
-        checkFlush();
+    public synchronized void requeue(String id) {
+        try {
+            writeCommand("REQ", id, 0);
+            requeuedCount++;
+            messageDone();
+        }
+        catch (IOException e) {
+            logger.error("requeue error:{}", host, e);
+            close();
+        }
     }
 
-    public synchronized void touch(String id) throws IOException {
-        writeCommand("TOUCH", id);
-        inFlight.put(id, Client.clock());
-        checkFlush();
+    private void messageDone() throws IOException {
+        inFlight--;
+        if (inFlight == 0 && isStopping) {
+            flushAndClose();
+        }
+        else {
+            checkFlush();
+        }
+    }
+
+    public synchronized void touch(String id) {
+        try {
+            writeCommand("TOUCH", id);
+            checkFlush();
+        }
+        catch (IOException e) {
+            logger.error("touch error:{}", host, e);
+            close();
+        }
     }
 
     private synchronized void delayedFlush() {
         try {
-            if (unflushedCount > 0) {
-                logger.debug("delayed flush hit");
+            if (unflushedCount > 0 && Client.clock() - lastActionFlush > (maxFlushDelayMillis / 2) + 10) {
                 flush();
             }
         }
         catch (Exception e) {
             logger.error("delayedFlush error", e);
-        }
-    }
-
-    private synchronized void checkMsgTimeout() {
-        try {
-            int count = 0;
-            long minTime = Client.clock() - msgTimeout - 10000;
-            //could make inFlight a LinkedHashMap and only iterate through some of it
-            for (Iterator<Long> iter = inFlight.values().iterator(); iter.hasNext(); ) {
-                if (iter.next() < minTime) {
-                    iter.remove(); //nsqd will requeue it, don't send REQ, just drop it
-                    count++;
-                }
-            }
-            if (count > 0) {
-                logger.info("{} msgs timed out", count);
-                checkReady();
-            }
-        }
-        catch (Exception e) {
-            logger.error("checkMsgTimeout error", e);
+            close();
         }
     }
 
     private void checkFlush() throws IOException {
         if (unflushedCount >= maxUnflushed) {
-            logger.debug("max unflushed hit");
             flush();
         }
         else {
@@ -107,14 +110,14 @@ class SubConnection extends Connection {
 
     public synchronized void setMaxInFlight(int maxInFlight) {
         try {
+            if (this.maxInFlight == maxInFlight) {
+                return;
+            }
             this.maxInFlight = maxInFlight;
-            maxUnflushed = maxInFlight / 3;
-            if (rdy > maxInFlight - inFlight.size()) {
-                sendReady(); //maxInFlight decreased, possibly too many in flight
-            }
-            else {
-                checkReady();
-            }
+            maxUnflushed = Math.min(maxInFlight / 3, 150); //should this bec onfigurable?  FIN id\n is 21 bytes
+            logger.debug("SEND RDY:{}", maxInFlight);
+            writeCommand("RDY", maxInFlight);
+            flush();
         }
         catch (IOException e) {
             logger.error("setMaxInFlight failed", e);
@@ -122,50 +125,107 @@ class SubConnection extends Connection {
         }
     }
 
+    @Override
     public synchronized int getMaxInFlight() {
         return maxInFlight;
     }
 
-    private void checkReady() throws IOException {
-        logger.debug("checkReady rdy:{} maxInFlight:{} inFlight:{}", rdy, maxInFlight, inFlight.size());
-        if (rdy < maxInFlight / 3.0 && inFlight.size() < maxInFlight / 2.0) {
-            sendReady();
-        }
-    }
-
-    private void sendReady() throws IOException {
-        rdy = Math.max(0, maxInFlight - inFlight.size());
-        logger.debug("SEND RDY:{}", rdy);
-        writeCommand("RDY", rdy);
-        flush();
-    }
-
     @Override
     public synchronized void connect(Config config) throws IOException {
+        Client.addSubConnection(this);
         super.connect(config);
         writeCommand("SUB", subscription.getTopic(), subscription.getChannel());
         flushAndReadOK();
-        checkReady();
     }
 
     @Override
     protected void onMessage(long timestamp, int attempts, String id, byte[] data) {
         final NSQMessage msg = new NSQMessage(timestamp, attempts, id, data, this);
         synchronized (this) {
-            inFlight.put(id, Client.clock());
-            rdy--;
+            if (msg.getAttempts() >= maxAttemps - 1) {
+                if (failedMessageHandler != null) {
+                    executor.execute(new Runnable() {
+                        public void run() {
+                            try {
+                                failedMessageHandler.failed(subscription.getTopic(), subscription.getChannel(), msg);
+                            }
+                            catch (Throwable t) {
+                                logger.error("failed message error", t);
+                            }
+                        }
+                    });
+                }
+                return;
+            }
+            inFlight++;
         }
         executor.execute(new Runnable() {
-            @Override
             public void run() {
                 try {
                     handler.accept(msg);
                 }
                 catch (Throwable t) {
-                    logger.error("msg error", t);
+                    logger.error("message error", t);
                 }
             }
         });
+    }
+
+    @Override
+    public synchronized void stop() {
+        super.stop();
+        if (inFlight == 0) {
+            flushAndClose();
+        }
+        else {
+            setMaxInFlight(0);
+        }
+    }
+
+    public synchronized String getTopicChannelString() {
+        return subscription.getTopic() + "." + subscription.getChannel();
+    }
+
+    public synchronized String getName() {
+        return host.getHostText() + "+" + subConId;
+    }
+
+    public synchronized int getSubConId() {
+        return subConId;
+    }
+
+    public synchronized void setSubConId(int subConId) {
+        this.subConId = subConId;
+    }
+
+    @Override
+    public synchronized int getMaxAttemps() {
+        return maxAttemps;
+    }
+
+    @Override
+    public synchronized int getMaxFlushDelayMillis() {
+        return maxFlushDelayMillis;
+    }
+
+    @Override
+    public synchronized int getInFlight() {
+        return inFlight;
+    }
+
+    @Override
+    public synchronized int getMaxUnflushed() {
+        return maxUnflushed;
+    }
+
+    @Override
+    public synchronized long getRequeuedCount() {
+        return requeuedCount;
+    }
+
+    @Override
+    public synchronized long getFinishedCount() {
+        return finishedCount;
     }
 
 }

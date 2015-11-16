@@ -1,5 +1,10 @@
 package com.sproutsocial.nsq;
 
+/**
+ * Configuration sent to nsqd with the IDENTIFY command
+ * http://nsq.io/clients/tcp_protocol_spec.html#a-nameidentifyidentifya
+ * to negotiate the features to use on a connection.
+ */
 public class Config {
 
     private String clientId;

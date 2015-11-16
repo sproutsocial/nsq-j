@@ -2,26 +2,33 @@ package com.sproutsocial.nsq;
 
 import com.google.common.base.Charsets;
 import com.google.common.net.HostAndPort;
+import com.sproutsocial.nsq.jmx.ConnectionMXBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xerial.snappy.SnappyFramedInputStream;
 import org.xerial.snappy.SnappyFramedOutputStream;
 
 import java.io.*;
+import java.lang.reflect.Constructor;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.*;
-import java.util.zip.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import java.util.zip.Deflater;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 
-abstract class Connection {
+abstract class Connection extends BasePubSub implements Closeable, ConnectionMXBean {
 
     protected final HostAndPort host;
 
     protected DataOutputStream out;
     protected DataInputStream in;
+    private volatile boolean isReading = true;
 
     protected int msgTimeout = 60000;
     protected int heartbeatInterval = 30000;
@@ -31,9 +38,7 @@ abstract class Connection {
     protected int unflushedCount;
     protected long lastHeartbeat;
 
-    private volatile boolean isRunning = true;
     protected BlockingQueue<String> respQueue = new ArrayBlockingQueue<String>(1);
-    protected List<ScheduledFuture> tasks = new ArrayList<ScheduledFuture>();
 
     private static ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
 
@@ -57,34 +62,20 @@ abstract class Connection {
 
         ServerConfig serverConfig = Client.mapper.readValue(response, ServerConfig.class);
         logger.debug("serverConfig:{}", Client.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
+        setConfig(serverConfig);
         msgTimeout = firstNonNull(serverConfig.getMsgTimeout(), 60000);
         heartbeatInterval = firstNonNull(serverConfig.getHeartbeatInterval(), msgTimeout / 2);
         maxRdyCount = firstNonNull(serverConfig.getMaxRdyCount(), 2500);
 
         sock.setSoTimeout(heartbeatInterval + 5000);
 
-        if (serverConfig.getDeflate()) {
-            in = new DataInputStream(new InflaterInputStream(bufIn,
-                    new Inflater(true), 32768));
-            //java7 - works
-            //out = new DataOutputStream(new DeflaterOutputStream(sock.getOutputStream(),
-            //        new Deflater(Deflater.DEFAULT_COMPRESSION, true), 32768, true));
-            //java6 - does not work, no way to turn on syncFlush
-            out = new DataOutputStream(new DeflaterOutputStream(sock.getOutputStream(),
-                    new Deflater(Deflater.DEFAULT_COMPRESSION, true), 32768));
-            response = readResponse();
-        }
-        else if (serverConfig.getSnappy()) {
-            in = new DataInputStream(new SnappyFramedInputStream(bufIn));
-            out = new DataOutputStream(new SnappyFramedOutputStream(sock.getOutputStream()));
-            response = readResponse();
-        }
+        wrapCompression(serverConfig, bufIn, sock);
 
         scheduleAtFixedRate(new Runnable() {
             public void run() {
                 checkHeartbeat();
             }
-        }, heartbeatInterval + 2000, heartbeatInterval);
+        }, heartbeatInterval + 2000, heartbeatInterval, false);
         lastHeartbeat = Client.clock();
 
         readThreadFactory.newThread(new Runnable() {
@@ -92,6 +83,32 @@ abstract class Connection {
                 read();
             }
         }).start();
+    }
+
+    private void wrapCompression(ServerConfig serverConfig, BufferedInputStream bufIn, Socket sock) throws IOException {
+        if (serverConfig.getDeflate()) {
+            in = new DataInputStream(new InflaterInputStream(bufIn,
+                    new Inflater(true), 32768));
+            //TODO select compression level
+            Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true);
+            try {
+                //deflate only works on java7 (syncFlush not exposed on java6), use reflection to see if it is available
+                // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=4206909
+                Constructor<DeflaterOutputStream> constr = DeflaterOutputStream.class.getConstructor(
+                        OutputStream.class, Deflater.class, int.class, boolean.class);
+                DeflaterOutputStream deflaterOut = constr.newInstance(sock.getOutputStream(), deflater, 32768, true);
+                out = new DataOutputStream(deflaterOut);
+            }
+            catch (Exception e) {
+                throw new NSQException("deflate compression only supported on java7 and up");
+            }
+            readResponse();
+        }
+        else if (serverConfig.getSnappy()) {
+            in = new DataInputStream(new SnappyFramedInputStream(bufIn));
+            out = new DataOutputStream(new SnappyFramedOutputStream(sock.getOutputStream()));
+            readResponse();
+        }
     }
 
     protected synchronized void checkHeartbeat() {
@@ -135,10 +152,10 @@ abstract class Connection {
     protected String readResponse() throws IOException {
         int size = in.readInt();
         int frameType = in.readInt();
-        logger.debug("reading frame size:{} type:{}", size, frameType);
+        //logger.debug("reading frame size:{} type:{}", size, frameType);
         String response = null;
 
-        if (frameType == 0) {
+        if (frameType == 0) {       //response
             response = readAscii(size - 4);
             if ("_heartbeat_".equals(response)) {
                 synchronized (this) {
@@ -147,23 +164,23 @@ abstract class Connection {
                 response = null;
             }
         }
-        else if (frameType == 1) {
+        else if (frameType == 1) {  //error
             String error = readAscii(size - 4);
             throw new NSQException("error from nsqd:" + error);
         }
-        else if (frameType == 2) {
+        else if (frameType == 2) {  //message
             onMessage(in.readLong(), in.readUnsignedShort(), readAscii(16), readBytes(size - 30));
         }
         else {
             throw new NSQException("bad frame type:" + frameType);
         }
-        logger.debug("response:{}", response);
+        //logger.debug("response:{}", response);
         return response;
     }
 
     private void read() {
         try {
-            while (isRunning) {
+            while (isReading) {
                 //no need to synchronize, this is the only thread that reads after connect()
                 String response = readResponse();
                 if (response != null) {
@@ -172,11 +189,12 @@ abstract class Connection {
             }
         }
         catch (Exception e) {
-            if (isRunning) {
+            if (isReading) {
                 close();
                 logger.error("read thread exception:{}", e);
             }
         }
+        logger.debug("read loop done");
     }
 
     protected void onMessage(long timestamp, int attempts, String id, byte[] data) {
@@ -206,36 +224,56 @@ abstract class Connection {
         }
     }
 
-    public synchronized void close() {
-        isRunning = false;
-        for (ScheduledFuture task : tasks) {
-            task.cancel(false);
+    public synchronized void flushAndClose() {
+        try {
+            flush();
         }
-        tasks.clear();
+        catch (IOException e) {
+            logger.error("flush on close error", e);
+        }
+        close();
+    }
+
+    public synchronized void close() {
+        isReading = false;
         Util.closeQuietly(out);
         Util.closeQuietly(in);
         Client.eventBus.post(this);
         logger.debug("connection closed");
     }
 
-    public void scheduleAtFixedRate(Runnable runnable, int initialDelay, int period) {
-        tasks.add(Client.scheduleAtFixedRate(runnable, initialDelay, period));
-    }
-
     public HostAndPort getHost() {
         return host;
     }
 
+    @Override
     public synchronized int getMsgTimeout() {
         return msgTimeout;
     }
 
+    @Override
     public synchronized long getLastActionFlush() {
         return lastActionFlush;
     }
 
+    @Override
     public synchronized int getMaxRdyCount() {
         return maxRdyCount;
+    }
+
+    @Override
+    public synchronized int getHeartbeatInterval() {
+        return heartbeatInterval;
+    }
+
+    @Override
+    public synchronized int getUnflushedCount() {
+        return unflushedCount;
+    }
+
+    @Override
+    public synchronized long getLastHeartbeat() {
+        return lastHeartbeat;
     }
 
 }

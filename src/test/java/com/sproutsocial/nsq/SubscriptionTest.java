@@ -27,12 +27,14 @@ public class SubscriptionTest {
     @Before
     public void beforeClass() {
         suppress(methods(SubConnection.class, "connect"));
-        suppress(methods(SubConnection.class, "sendReady"));
+        suppress(methods(SubConnection.class, "writeCommand"));
+        suppress(methods(SubConnection.class, "flush"));
+        suppress(methods(SubConnection.class, "close"));
     }
 
     @Test
     public void testDistributeInFlight() throws Exception {
-        Subscriber subscriber = new Subscriber();
+        Subscriber subscriber = new Subscriber(30);
         subscriber.setMaxInFlightPerSubscription(200);
         Subscription sub = new Subscription("topic", "channel", null, subscriber);
 
@@ -98,7 +100,7 @@ public class SubscriptionTest {
 
     @Test
     public void testLowFlight() throws Exception {
-        Subscriber subscriber = new Subscriber();
+        Subscriber subscriber = new Subscriber(30);
         Subscription sub = new Subscription("topic", "channel", null, subscriber);
 
         testLowFlight(subscriber, sub, 2, 3);

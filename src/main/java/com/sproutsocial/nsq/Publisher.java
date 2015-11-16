@@ -2,27 +2,31 @@ package com.sproutsocial.nsq;
 
 import com.google.common.eventbus.Subscribe;
 import com.google.common.net.HostAndPort;
+import com.sproutsocial.nsq.jmx.PublisherMXBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 
-public class Publisher extends Client {
+public class Publisher extends BasePubSub implements PublisherMXBean {
 
     private final HostAndPort nsqd;
-    private final HostAndPort backupNsqd;
+    private final HostAndPort failoverNsqd;
     private PubConnection con;
-    private boolean isBackupConnected = false;
-    private long blackListStart;
+    private boolean isFailover = false;
+    private long failoverStart;
+    private int failoverDurationSecs = 30;
 
-    private static final int blackListDuration = 30000;
+    private long publishedCount = 0;
+    private long publishedFailoverCount = 0;
 
     private static final Logger logger = LoggerFactory.getLogger(Publisher.class);
 
-    public Publisher(String nsqd, String backupNsqd) {
+    public Publisher(String nsqd, String failoverNsqd) {
         this.nsqd = HostAndPort.fromString(nsqd).withDefaultPort(4150);
-        this.backupNsqd = backupNsqd != null ? HostAndPort.fromString(backupNsqd).withDefaultPort(4150) : null;
+        this.failoverNsqd = failoverNsqd != null ? HostAndPort.fromString(failoverNsqd).withDefaultPort(4150) : null;
+        Client.addPublisher(this);
         Client.eventBus.register(this);
     }
 
@@ -32,11 +36,14 @@ public class Publisher extends Client {
 
     private void checkConnection() throws IOException {
         if (con == null) {
+            if (isStopping) {
+                throw new NSQException("publisher stopped");
+            }
             connect(nsqd);
         }
-        else if (isBackupConnected && Client.clock() - blackListStart > blackListDuration) {
+        else if (isFailover && Client.clock() - failoverStart > failoverDurationSecs * 1000) {
             connect(nsqd);
-            isBackupConnected = false;
+            isFailover = false;
             logger.info("using primary nsqd");
         }
     }
@@ -45,7 +52,7 @@ public class Publisher extends Client {
         if (con != null) {
             con.close();
         }
-        con = new PubConnection(host, this);
+        con = new PubConnection(host);
         con.connect(config);
         logger.info("publisher connected:{}", host);
     }
@@ -62,9 +69,11 @@ public class Publisher extends Client {
         try {
             checkConnection();
             con.publish(topic, data);
+            publishedCount++;
         }
         catch (IOException e) {
-            publishBackup(topic, data);
+            logger.warn("io error with:{} {}", isFailover ? failoverNsqd : nsqd, e);
+            publishFailover(topic, data);
         }
     }
 
@@ -72,32 +81,79 @@ public class Publisher extends Client {
         try {
             checkConnection();
             con.publish(topic, dataList);
+            publishedCount += dataList.size();
         }
         catch (IOException e) {
+            logger.warn("io error with:{} {}", isFailover ? failoverNsqd : nsqd, e);
             for (byte[] data : dataList) {
-                publishBackup(topic, data);
+                publishFailover(topic, data);
             }
         }
     }
 
-    private void publishBackup(String topic, byte[] data) {
+    private void publishFailover(String topic, byte[] data) {
         try {
-            if (backupNsqd == null) {
-                logger.info("publish failed, will sleep and retry once");
-                Util.sleepQuietly(10000);
+            if (failoverNsqd == null) {
+                logger.warn("publish failed but no failoverNsqd configured. Will wait and retry once.");
+                Util.sleepQuietly(10000); //could do exponential backoff or make configurable
                 connect(nsqd);
             }
-            else if (!isBackupConnected) {
-                blackListStart = Client.clock();
-                isBackupConnected = true;
-                connect(backupNsqd);
-                logger.info("using backup nsqd");
+            else if (!isFailover) {
+                failoverStart = Client.clock();
+                isFailover = true;
+                connect(failoverNsqd);
+                logger.info("using failover nsqd:{}", failoverNsqd);
             }
             con.publish(topic, data);
+            publishedFailoverCount++;
         }
         catch (IOException e) {
+            Util.closeQuietly(con);
+            con = null;
             throw new NSQException("publish failed", e);
         }
+    }
+
+    @Override
+    public synchronized void stop() {
+        super.stop();
+        Util.closeQuietly(con);
+        con = null;
+    }
+
+    @Override
+    public String getNsqd() {
+        return nsqd.toString();
+    }
+
+    @Override
+    public String getFailoverNsqd() {
+        return failoverNsqd.toString();
+    }
+
+    @Override
+    public synchronized int getFailoverDurationSecs() {
+        return failoverDurationSecs;
+    }
+
+    @Override
+    public synchronized void setFailoverDurationSecs(int failoverDurationSecs) {
+        this.failoverDurationSecs = failoverDurationSecs;
+    }
+
+    @Override
+    public synchronized boolean isFailover() {
+        return isFailover;
+    }
+
+    @Override
+    public synchronized long getPublishedCount() {
+        return publishedCount;
+    }
+
+    @Override
+    public synchronized long getPublishedFailoverCount() {
+        return publishedFailoverCount;
     }
 
 }

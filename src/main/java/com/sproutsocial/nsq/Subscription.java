@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
 
-class Subscription {
+class Subscription extends BasePubSub {
 
     private final String topic;
     private final String channel;
@@ -57,13 +57,13 @@ class Subscription {
         distributeMaxInFlight();
     }
 
-    private void distributeMaxInFlight() {
+    public void distributeMaxInFlight() {
         if (checkLowFlight() || connectionMap.isEmpty()) {
             return;
         }
         List<SubConnection> activeCons = Lists.newArrayList();
         List<SubConnection> inactiveCons = Lists.newArrayList();
-        long minActiveTime = Client.clock() - subscriber.getLookupIntervalSecs() * 1000 - 5000;
+        long minActiveTime = Client.clock() - subscriber.getLookupIntervalSecs() * 300;
         for (SubConnection con : connectionMap.values()) {
             if (con.lastActionFlush < minActiveTime) {
                 inactiveCons.add(con);
@@ -99,7 +99,7 @@ class Subscription {
                     public void run() {
                         rotateLowFlight();
                     }
-                }, 10000, 10000);
+                }, 10000, 10000, false);
             }
             List<SubConnection> cons = Lists.newArrayList(connectionMap.values());
             for (SubConnection con : cons.subList(0, subscriber.getMaxInFlightPerSubscription())) {
@@ -132,13 +132,14 @@ class Subscription {
         }
     }
 
-    public synchronized void close() {
+    @Override
+    public synchronized void stop() {
+        super.stop();
         Util.cancel(lowFlightRotateTask);
         lowFlightRotateTask = null;
         for (SubConnection con : connectionMap.values()) {
-            con.close();
+            con.stop();
         }
-        logger.debug("subscription closed:{}", topic);
     }
 
     @Subscribe
@@ -166,6 +167,11 @@ class Subscription {
 
     public String getChannel() {
         return channel;
+    }
+
+    @Override
+    public synchronized String toString() {
+        return topic + "." + channel + " connectionss:" + connectionMap.size();
     }
 
 }

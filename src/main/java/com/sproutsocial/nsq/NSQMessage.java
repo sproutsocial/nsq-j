@@ -1,7 +1,5 @@
 package com.sproutsocial.nsq;
 
-import java.io.IOException;
-
 class NSQMessage implements Message {
 
     private final long timestamp;
@@ -40,32 +38,17 @@ class NSQMessage implements Message {
 
     @Override
     public void finish() {
-        try {
-            connection.finish(id);
-        }
-        catch (IOException e) {
-            throw new NSQException("msg finish error", e);
-        }
+        connection.finish(id);
     }
 
     @Override
     public void requeue() {
-        try {
-            connection.requeue(id);
-        }
-        catch (IOException e) {
-            throw new NSQException("msg requeue error", e);
-        }
+        connection.requeue(id);
     }
 
     @Override
     public void touch() {
-        try {
-            connection.touch(id);
-        }
-        catch (IOException e) {
-            throw new NSQException("msg touch error", e);
-        }
+        connection.touch(id);
     }
 
 }

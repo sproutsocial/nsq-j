@@ -7,9 +7,9 @@ public class MiscMain {
 
     public static void handle(Message msg) {
         System.out.println("msg:" + new String(msg.getData()));
-        Util.sleepQuietly(1000);
+        Util.sleepQuietly(10000);
         msg.finish();
-        System.out.println("  finished");
+        System.out.println("finished:" + new String(msg.getData()));
     }
 
     public static void testPub() {
@@ -37,13 +37,12 @@ public class MiscMain {
         Util.sleepQuietly(10000);
     }
 
-    public static void testSub() {
+    public static void testSubOld() {
         Config config = new Config();
         //config.setDeflate(true);
         //config.setDeflateLevel(6);
         config.setSnappy(true);
-        Subscriber subscriber = new Subscriber("localhost");
-        subscriber.setLookupIntervalSecs(30);
+        Subscriber subscriber = new Subscriber(30, "localhost");
         subscriber.setMaxInFlightPerSubscription(10);
         System.out.println("created subscriber");
 
@@ -55,7 +54,37 @@ public class MiscMain {
         System.out.println("subscribed");
 
         Util.sleepQuietly(120000);
-        subscriber.stop(0);
+        subscriber.stop();
+    }
+
+    public static void testSub() {
+        Config config = new Config();
+        //config.setDeflate(true);
+        //config.setDeflateLevel(6);
+        //config.setSnappy(true);
+        config.setMsgTimeout(25000);
+        //DirectSubscriber subscriber = new DirectSubscriber(30, "localhost");
+        Subscriber subscriber = new Subscriber(30, "localhost");
+        subscriber.setMaxInFlightPerSubscription(2);
+        System.out.println("created subscriber");
+
+        subscriber.subscribe("test1", "chan1", new MessageHandler() {
+            public void accept(Message msg) {
+                handle(msg);
+            }
+        });
+        System.out.println("subscribed");
+
+        Util.sleepQuietly(1000);
+        Publisher publisher = new Publisher("localhost");
+        publisher.publish("test1", "from java".getBytes());
+        //Util.sleepQuietly(30000);
+        //subscriber.setMaxInFlightPerSubscription(1);
+
+        Util.sleepQuietly(3000000);
+        System.out.println("calling Client.stop");
+        Client.stop(30000);
+        System.out.println("Client.stop done");
     }
 
     public static void main(String[] args) {
@@ -69,7 +98,7 @@ public class MiscMain {
 
             //List<String> prodLookups = Arrays.asList("nsq-lookup01", "nsq-lookup02", "nsq-lookup03");
 
-            System.out.println("done");
+            System.out.println("main done");
         }
         catch (Exception e) {
             e.printStackTrace();

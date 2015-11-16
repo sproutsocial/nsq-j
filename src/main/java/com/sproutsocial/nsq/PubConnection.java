@@ -1,19 +1,14 @@
 package com.sproutsocial.nsq;
 
 import com.google.common.net.HostAndPort;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 
 class PubConnection extends Connection {
 
-    private final Publisher publisher;
-
-    public PubConnection(HostAndPort host, Publisher publisher) {
+    public PubConnection(HostAndPort host) {
         super(host);
-        this.publisher = publisher;
     }
 
     public synchronized void publish(String topic, byte[] data) throws IOException {
