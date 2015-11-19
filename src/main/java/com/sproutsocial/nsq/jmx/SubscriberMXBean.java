@@ -24,6 +24,10 @@ public interface SubscriberMXBean {
 
     Integer getExecutorQueueSize();
 
+    int getFailedMessageCount();
+
+    int getHandlerErrorCount();
+
     void stop();
 
 }

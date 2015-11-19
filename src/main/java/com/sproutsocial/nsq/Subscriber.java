@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class Subscriber extends BasePubSub implements SubscriberMXBean {
 
@@ -24,6 +25,8 @@ public class Subscriber extends BasePubSub implements SubscriberMXBean {
     private int maxFlushDelayMillis = 3000;
     private int maxAttempts = 5;
     private FailedMessageHandler failedMessageHandler = null;
+    private AtomicInteger failedMessageCount = new AtomicInteger();
+    private AtomicInteger handlerErrorCount = new AtomicInteger();
 
     private static final Logger logger = LoggerFactory.getLogger(Subscriber.class);
 
@@ -153,6 +156,32 @@ public class Subscriber extends BasePubSub implements SubscriberMXBean {
     public Integer getExecutorQueueSize() {
         ExecutorService executor = Client.getExecutor();
         return executor instanceof ThreadPoolExecutor ? ((ThreadPoolExecutor)executor).getQueue().size() : null;
+    }
+
+    @Override
+    public int getFailedMessageCount() {
+        return failedMessageCount.get();
+    }
+
+    @Override
+    public int getHandlerErrorCount() {
+        return handlerErrorCount.get();
+    }
+
+    public void messageFailed() {
+        failedMessageCount.incrementAndGet();
+    }
+
+    public void handlerError() {
+        handlerErrorCount.incrementAndGet();
+    }
+
+    public synchronized int getConnectionCount() {
+        int count = 0;
+        for (Subscription subscription : subscriptions) {
+            count += subscription.getConnectionCount();
+        }
+        return count;
     }
 
 }

@@ -6,13 +6,15 @@ class NSQMessage implements Message {
     private final int attempts;
     private final String id;
     private final byte[] data;
+    private final String topic;
     private final SubConnection connection;
 
-    NSQMessage(long timestamp, int attempts, String id, byte[] data, SubConnection connection) {
+    NSQMessage(long timestamp, int attempts, String id, byte[] data, String topic, SubConnection connection) {
         this.timestamp = timestamp;
         this.attempts = attempts;
         this.id = id;
         this.data = data;
+        this.topic = topic;
         this.connection = connection;
     }
 
@@ -34,6 +36,11 @@ class NSQMessage implements Message {
     @Override
     public int getAttempts() {
         return attempts;
+    }
+
+    @Override
+    public String getTopic() {
+        return topic;
     }
 
     @Override

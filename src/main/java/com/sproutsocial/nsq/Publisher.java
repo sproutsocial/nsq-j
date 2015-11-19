@@ -20,6 +20,7 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
 
     private long publishedCount = 0;
     private long publishedFailoverCount = 0;
+    private long publishFailedCount = 0;
 
     private static final Logger logger = LoggerFactory.getLogger(Publisher.class);
 
@@ -110,6 +111,7 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
         catch (IOException e) {
             Util.closeQuietly(con);
             con = null;
+            publishFailedCount++;
             throw new NSQException("publish failed", e);
         }
     }
@@ -147,6 +149,11 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
     }
 
     @Override
+    public synchronized boolean isConnected() {
+        return con != null;
+    }
+
+    @Override
     public synchronized long getPublishedCount() {
         return publishedCount;
     }
@@ -154,6 +161,11 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
     @Override
     public synchronized long getPublishedFailoverCount() {
         return publishedFailoverCount;
+    }
+
+    @Override
+    public synchronized long getPublishFailedCount() {
+        return publishFailedCount;
     }
 
 }

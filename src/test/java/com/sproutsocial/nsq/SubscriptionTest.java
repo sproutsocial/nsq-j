@@ -8,6 +8,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
@@ -17,11 +18,14 @@ import java.util.*;
 import static org.junit.Assert.*;
 import static org.powermock.api.mockito.PowerMockito.methods;
 import static org.powermock.api.mockito.PowerMockito.suppress;
+import static org.powermock.api.support.membermodification.MemberMatcher.constructor;
 
-//@PrepareForTest({Subscription.class, SubConnection.class})
+//to prepare multiple classes
+//@PrepareForTest({SubConnection.class, Client.class})
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(SubConnection.class)
+@PowerMockIgnore({"javax.management.*"})
 public class SubscriptionTest {
 
     @Before
@@ -30,6 +34,7 @@ public class SubscriptionTest {
         suppress(methods(SubConnection.class, "writeCommand"));
         suppress(methods(SubConnection.class, "flush"));
         suppress(methods(SubConnection.class, "close"));
+        suppress(methods(SubConnection.class, "scheduleAtFixedRate"));
     }
 
     @Test

@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
 class Subscription extends BasePubSub {
@@ -17,7 +18,7 @@ class Subscription extends BasePubSub {
     private final String channel;
     private final MessageHandler handler;
     private final Subscriber subscriber;
-    private final Map<HostAndPort, SubConnection> connectionMap = Maps.newHashMap();
+    private final Map<HostAndPort, SubConnection> connectionMap = new ConcurrentHashMap<HostAndPort, SubConnection>();
     private ScheduledFuture lowFlightRotateTask;
 
     private static final Logger logger = LoggerFactory.getLogger(Subscription.class);
@@ -172,6 +173,10 @@ class Subscription extends BasePubSub {
     @Override
     public synchronized String toString() {
         return topic + "." + channel + " connectionss:" + connectionMap.size();
+    }
+
+    public synchronized int getConnectionCount() {
+        return connectionMap.size();
     }
 
 }

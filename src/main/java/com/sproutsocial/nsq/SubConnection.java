@@ -13,6 +13,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
     private final FailedMessageHandler failedMessageHandler;
     private final ExecutorService executor;
     private final Subscription subscription;
+    private final String topic;
     private final int maxAttemps;
     private final int maxFlushDelayMillis;
     private int inFlight = 0;
@@ -32,6 +33,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
         this.failedMessageHandler = subscriber.getFailedMessageHandler();
         this.executor = Client.getExecutor();
         this.subscription = subscription;
+        this.topic = subscription.getTopic();
         this.maxAttemps = subscriber.getMaxAttempts();
         this.maxFlushDelayMillis = subscriber.getMaxFlushDelayMillis();
 
@@ -49,7 +51,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
             messageDone();
         }
         catch (IOException e) {
-            logger.error("finish error:{}", host, e);
+            logger.error("finish error. con:{}", toString(), e);
             close();
         }
     }
@@ -61,7 +63,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
             messageDone();
         }
         catch (IOException e) {
-            logger.error("requeue error:{}", host, e);
+            logger.error("requeue error. con:{}", toString(), e);
             close();
         }
     }
@@ -82,7 +84,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
             checkFlush();
         }
         catch (IOException e) {
-            logger.error("touch error:{}", host, e);
+            logger.error("touch error. con:{}", toString(), e);
             close();
         }
     }
@@ -94,7 +96,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
             }
         }
         catch (Exception e) {
-            logger.error("delayedFlush error", e);
+            logger.error("delayedFlush error. con:{}", toString(), e);
             close();
         }
     }
@@ -115,12 +117,12 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
             }
             this.maxInFlight = maxInFlight;
             maxUnflushed = Math.min(maxInFlight / 3, 150); //should this bec onfigurable?  FIN id\n is 21 bytes
-            logger.debug("SEND RDY:{}", maxInFlight);
+            logger.debug("RDY:{}", maxInFlight);
             writeCommand("RDY", maxInFlight);
             flush();
         }
         catch (IOException e) {
-            logger.error("setMaxInFlight failed", e);
+            logger.error("setMaxInFlight failed. con:{}", toString(), e);
             close();
         }
     }
@@ -140,7 +142,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
 
     @Override
     protected void onMessage(long timestamp, int attempts, String id, byte[] data) {
-        final NSQMessage msg = new NSQMessage(timestamp, attempts, id, data, this);
+        final NSQMessage msg = new NSQMessage(timestamp, attempts, id, data, topic, this);
         synchronized (this) {
             if (msg.getAttempts() >= maxAttemps - 1) {
                 if (failedMessageHandler != null) {
@@ -155,6 +157,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
                         }
                     });
                 }
+                subscription.getSubscriber().messageFailed();
                 return;
             }
             inFlight++;
@@ -165,6 +168,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
                     handler.accept(msg);
                 }
                 catch (Throwable t) {
+                    subscription.getSubscriber().handlerError();
                     logger.error("message error", t);
                 }
             }
@@ -180,6 +184,12 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
         else {
             setMaxInFlight(0);
         }
+    }
+
+    @Override
+    public synchronized String toString() {
+        return super.toString() + String.format(" %s inFlight:%d maxInFlight:%d fin:%d req:%d",
+                getTopicChannelString(), inFlight, maxInFlight, finishedCount, requeuedCount);
     }
 
     public synchronized String getTopicChannelString() {

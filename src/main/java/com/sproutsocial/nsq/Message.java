@@ -2,6 +2,8 @@ package com.sproutsocial.nsq;
 
 public interface Message {
 
+    String getTopic();
+
     byte[] getData();
 
     String getId();

@@ -33,4 +33,9 @@ class PubConnection extends Connection {
         flushAndReadOK();
     }
 
+    @Override
+    public synchronized String toString() {
+        return super.toString() + " pub";
+    }
+
 }

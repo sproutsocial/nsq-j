@@ -1,6 +1,7 @@
 package com.sproutsocial.nsq;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
 import com.sproutsocial.nsq.jmx.ConnectionMXBean;
 import org.slf4j.Logger;
@@ -9,8 +10,10 @@ import org.xerial.snappy.SnappyFramedInputStream;
 import org.xerial.snappy.SnappyFramedOutputStream;
 
 import java.io.*;
+import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.net.Socket;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -40,7 +43,8 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
 
     protected BlockingQueue<String> respQueue = new ArrayBlockingQueue<String>(1);
 
-    private static ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
+    private static final ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
+    private static final Set<String> nonFatalErrors = ImmutableSet.of("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED");
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
@@ -49,6 +53,7 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
     }
 
     public synchronized void connect(Config config) throws IOException {
+        addClientConfig(config);
         Socket sock = new Socket(host.getHostText(), host.getPort());
         BufferedInputStream bufIn = new BufferedInputStream(sock.getInputStream());
         in = new DataInputStream(bufIn);
@@ -64,8 +69,9 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
         logger.debug("serverConfig:{}", Client.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
         setConfig(serverConfig);
         msgTimeout = firstNonNull(serverConfig.getMsgTimeout(), 60000);
-        heartbeatInterval = firstNonNull(serverConfig.getHeartbeatInterval(), msgTimeout / 2);
+        heartbeatInterval = firstNonNull(serverConfig.getHeartbeatInterval(), 30000);
         maxRdyCount = firstNonNull(serverConfig.getMaxRdyCount(), 2500);
+        logger.info("msgTimeout:{} heartbeatInterval:{} maxRdyCount:{}", msgTimeout, heartbeatInterval, maxRdyCount);
 
         sock.setSoTimeout(heartbeatInterval + 5000);
 
@@ -83,6 +89,23 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
                 read();
             }
         }).start();
+    }
+
+    private void addClientConfig(Config config) {
+        if (config.getHostname() == null) {
+            String pidHost = ManagementFactory.getRuntimeMXBean().getName();
+            int pos = pidHost.indexOf('@');
+            if (pos > 0) {
+                config.setHostname(pidHost.substring(pos + 1));
+            }
+        }
+        String version = getClass().getPackage().getImplementationVersion();
+        logger.debug("version:{}", version);
+        if (version == null || version.length() == 0) {
+            version = "dev";
+        }
+        config.setUserAgent("nsq-j/" + version);
+        config.setFeatureNegotiation(true);
     }
 
     private void wrapCompression(ServerConfig serverConfig, BufferedInputStream bufIn, Socket sock) throws IOException {
@@ -113,20 +136,20 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
 
     protected synchronized void checkHeartbeat() {
         try {
-            logger.debug("checkHeartbeat");
+            //logger.debug("checkHeartbeat {}", toString());
             long now = Client.clock();
             if (now - lastHeartbeat > 2 * heartbeatInterval + 2000) {
-                logger.info("heartbeat failed, closing connection:{}", host);
+                logger.info("heartbeat failed, closing connection:{}", toString());
                 close();
             }
             else if (now - lastActionFlush > heartbeatInterval * 0.9) {
-                logger.debug("idle, sending NOP");
+                //logger.debug("idle, sending NOP {}", toString());
                 out.write("NOP\n".getBytes(Charsets.US_ASCII));
                 out.flush(); //NOP does not update lastActionFlush
             }
         }
         catch (Exception e) {
-            logger.error("problem checking heartbeat, will probably time out soon", e);
+            logger.error("problem checking heartbeat, will probably time out soon. con:{}", toString(), e);
         }
     }
 
@@ -152,7 +175,6 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
     protected String readResponse() throws IOException {
         int size = in.readInt();
         int frameType = in.readInt();
-        //logger.debug("reading frame size:{} type:{}", size, frameType);
         String response = null;
 
         if (frameType == 0) {       //response
@@ -166,7 +188,12 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
         }
         else if (frameType == 1) {  //error
             String error = readAscii(size - 4);
-            throw new NSQException("error from nsqd:" + error);
+            if (nonFatalErrors.contains(error)) {
+                logger.warn("non fatal nsqd error:{} probably due to message timeout", error);
+            }
+            else {
+                throw new NSQException("error from nsqd:" + error);
+            }
         }
         else if (frameType == 2) {  //message
             onMessage(in.readLong(), in.readUnsignedShort(), readAscii(16), readBytes(size - 30));
@@ -174,7 +201,6 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
         else {
             throw new NSQException("bad frame type:" + frameType);
         }
-        //logger.debug("response:{}", response);
         return response;
     }
 
@@ -191,7 +217,7 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
         catch (Exception e) {
             if (isReading) {
                 close();
-                logger.error("read thread exception:{}", e);
+                logger.error("read thread exception. con:{}", toString(), e);
             }
         }
         logger.debug("read loop done");
@@ -239,11 +265,18 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
         Util.closeQuietly(out);
         Util.closeQuietly(in);
         Client.eventBus.post(this);
-        logger.debug("connection closed");
+        logger.debug("connection closed:{}", toString());
     }
 
     public HostAndPort getHost() {
         return host;
+    }
+
+    @Override
+    public synchronized String toString() {
+        long now = Client.clock();
+        return String.format("%s lastFlush:%.1f lastHeartbeat:%.1f unflushedCount:%d", host.getHostText(),
+                (now - lastActionFlush) / 1000f, (now - lastHeartbeat) / 1000f, unflushedCount);
     }
 
     @Override

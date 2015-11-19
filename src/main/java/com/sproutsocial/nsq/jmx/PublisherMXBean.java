@@ -12,9 +12,13 @@ public interface PublisherMXBean {
 
     boolean isFailover();
 
+    boolean isConnected();
+
     long getPublishedCount();
 
     long getPublishedFailoverCount();
+
+    long getPublishFailedCount();
 
     void stop();
 

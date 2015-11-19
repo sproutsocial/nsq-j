@@ -7,6 +7,7 @@ import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.sproutsocial.nsq.jmx.ClientMXBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +30,7 @@ public class Client {
     private static final Set<SubConnection> subConnections = Sets.newHashSet();
     private static int subConnectionCount = 0;
 
-    private static final Client instance = new Client();
+    private static final NSQClient instance = new NSQClient();
     private static ExecutorService executor;
     private static final ScheduledExecutorService schedExecutor = Executors.newSingleThreadScheduledExecutor(Util.threadFactory("nsq-sched"));
     private static final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
@@ -40,6 +41,7 @@ public class Client {
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
         mapper.setPropertyNamingStrategy(PropertyNamingStrategy.CAMEL_CASE_TO_LOWER_CASE_WITH_UNDERSCORES);
         eventBus.register(instance);
+        registerMBean(instance, "nsq", "client");
     }
 
     //--------------------------
@@ -74,6 +76,26 @@ public class Client {
             executor = Executors.newFixedThreadPool(6, Util.threadFactory("nsq-sub"));
         }
         return executor;
+    }
+
+    public static int getCurrentConnectionCount() {
+        return instance.getCurrentConnectionCount();
+    }
+
+    public static int getTotalDisconnections() {
+        return instance.getTotalDisconnections();
+    }
+
+    public static long getPublishedCount() {
+        return instance.getPublishedCount();
+    }
+
+    public static long getPublishedFailoverCount() {
+        return instance.getPublishedFailoverCount();
+    }
+
+    public static long getPublishFailedCount() {
+        return instance.getPublishFailedCount();
     }
 
     //--------------------------
@@ -133,61 +155,132 @@ public class Client {
 
     //--------------------------
 
-    private synchronized void stopSub(int waitMillis) {
-        for (Subscriber subscriber : subscribers) {
-            subscriber.stop();
-        }
-        long start = clock();
-        while (clock() - start < waitMillis && !subConnections.isEmpty()) {
-            logger.info("waiting for subscribers to finish in-flight messages");
-            try {
-                wait(waitMillis);
+    //inner class to hide connectionClosed which must be public
+    static class NSQClient implements ClientMXBean {
+
+        private int disconnectionCount;
+
+        private synchronized void stopSub(int waitMillis) {
+            for (Subscriber subscriber : subscribers) {
+                subscriber.stop();
             }
-            catch (InterruptedException e) {
-            }
-        }
-        for (SubConnection subCon : subConnections) {
-            subCon.close();
-        }
-    }
-
-    private synchronized void stopAll(int waitMillis) {
-        logger.info("stopping nsq client");
-        long start = clock();
-        stopSub(waitMillis);
-
-        if (executor != null) {
-            int timeout = Math.max((int) (waitMillis - (clock() - start)), 100);
-            MoreExecutors.shutdownAndAwaitTermination(executor, timeout, TimeUnit.MILLISECONDS);
-        }
-
-        for (Publisher publisher : publishers) {
-            publisher.stop();
-        }
-
-        int timeout = Math.max((int) (waitMillis - (clock() - start)), 100);
-        MoreExecutors.shutdownAndAwaitTermination(schedExecutor, timeout, TimeUnit.MILLISECONDS);
-
-        logger.debug("executor.isTerminated:{} schedExecutor.isTerminated:{}", executor != null ? executor.isTerminated() : "null", schedExecutor.isTerminated());
-        logger.info("nsq client stopped");
-    }
-
-    @Subscribe
-    public synchronized void connectionClosed(Connection closedCon) {
-        if (closedCon instanceof SubConnection) {
-            if (subConnections.remove(closedCon)) {
-                SubConnection subCon = (SubConnection) closedCon;
-                String jmxName = "nsq." + subCon.getTopicChannelString() + ":type=" + subCon.getName();
+            long start = clock();
+            while (clock() - start < waitMillis && !subConnections.isEmpty()) {
+                logger.info("waiting for subscribers to finish in-flight messages");
                 try {
-                    mbeanServer.unregisterMBean(new ObjectName(jmxName));
+                    wait(waitMillis);
                 }
-                catch (Exception e) {
-                    logger.error("failed to unregister mbean:{}", jmxName, e);
+                catch (InterruptedException e) {
                 }
             }
-            if (subConnections.isEmpty()) {
-                notifyAll();
+            for (SubConnection subCon : subConnections) {
+                subCon.close();
             }
+        }
+
+        private synchronized void stopAll(int waitMillis) {
+            logger.info("stopping nsq client");
+            long start = clock();
+            stopSub(waitMillis);
+
+            if (executor != null) {
+                int timeout = Math.max((int) (waitMillis - (clock() - start)), 100);
+                MoreExecutors.shutdownAndAwaitTermination(executor, timeout, TimeUnit.MILLISECONDS);
+            }
+
+            for (Publisher publisher : publishers) {
+                publisher.stop();
+            }
+
+            int timeout = Math.max((int) (waitMillis - (clock() - start)), 100);
+            MoreExecutors.shutdownAndAwaitTermination(schedExecutor, timeout, TimeUnit.MILLISECONDS);
+
+            logger.debug("executor.isTerminated:{} schedExecutor.isTerminated:{}", executor != null ? executor.isTerminated() : "null", schedExecutor.isTerminated());
+            logger.info("nsq client stopped");
+        }
+
+        @Subscribe
+        public synchronized void connectionClosed(Connection closedCon) {
+            disconnectionCount++;
+            if (closedCon instanceof SubConnection) {
+                if (subConnections.remove(closedCon)) {
+                    SubConnection subCon = (SubConnection) closedCon;
+                    String jmxName = "nsq." + subCon.getTopicChannelString() + ":type=" + subCon.getName();
+                    try {
+                        mbeanServer.unregisterMBean(new ObjectName(jmxName));
+                    }
+                    catch (Exception e) {
+                        logger.error("failed to unregister mbean:{}", jmxName, e);
+                    }
+                }
+                if (subConnections.isEmpty()) {
+                    notifyAll();
+                }
+            }
+        }
+
+        @Override
+        public synchronized int getCurrentConnectionCount() {
+            int count = 0;
+            for (Publisher publisher : publishers) {
+                if (publisher.isConnected()) {
+                    count++;
+                }
+            }
+            for (Subscriber subscriber : subscribers) {
+                count += subscriber.getConnectionCount();
+            }
+            return count;
+        }
+
+        @Override
+        public synchronized int getTotalDisconnections() {
+            return disconnectionCount;
+        }
+
+        @Override
+        public synchronized long getPublishedCount() {
+            int count = 0;
+            for (Publisher publisher : publishers) {
+                count += publisher.getPublishedCount();
+            }
+            return count;
+        }
+
+        @Override
+        public synchronized long getPublishedFailoverCount() {
+            int count = 0;
+            for (Publisher publisher : publishers) {
+                count += publisher.getPublishedFailoverCount();
+            }
+            return count;
+        }
+
+        @Override
+        public synchronized long getPublishFailedCount() {
+            int count = 0;
+            for (Publisher publisher : publishers) {
+                count += publisher.getPublishFailedCount();
+            }
+            return count;
+        }
+
+        @Override
+        public int getFailedMessageCount() {
+            int count = 0;
+            for (Subscriber subscriber : subscribers) {
+                count += subscriber.getFailedMessageCount();
+            }
+            return count;
+        }
+
+        @Override
+        public int getHandlerErrorCount() {
+            int count = 0;
+            for (Subscriber subscriber : subscribers) {
+                count += subscriber.getHandlerErrorCount();
+            }
+            return count;
         }
     }
 
