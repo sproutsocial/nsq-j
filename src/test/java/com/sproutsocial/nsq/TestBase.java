@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static org.junit.Assert.assertEquals;
+
 public class TestBase {
 
     //public static long seed = System.currentTimeMillis();
@@ -41,6 +43,23 @@ public class TestBase {
         String line = null;
         while ((line = in.readLine()) != null) {
             System.out.println(line);
+        }
+    }
+
+    public static void debugFail(List<String> testMsgs, List<String> targetMsgs) {
+        System.out.println("test size:" + testMsgs.size() + " target size:" + targetMsgs.size());
+        for (int i = 0; i < testMsgs.size(); i++) {
+            String msg = testMsgs.get(i);
+            String target = targetMsgs.get(i);
+            System.out.println("test:" + msg.substring(0, Math.min(40, msg.length())));
+            System.out.println(" tgt:" + target.substring(0, Math.min(40, target.length())));
+            if (!msg.equals(target)) {
+                System.out.println(msg);
+                System.out.println(target);
+                System.out.println("FAIL");
+                break;
+            }
+            System.out.println();
         }
     }
 

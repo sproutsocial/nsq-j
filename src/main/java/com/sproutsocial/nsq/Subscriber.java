@@ -22,7 +22,7 @@ public class Subscriber extends BasePubSub implements SubscriberMXBean {
     private final List<Subscription> subscriptions = Lists.newArrayList();
     private final int lookupIntervalSecs;
     private int maxInFlightPerSubscription = 200;
-    private int maxFlushDelayMillis = 3000;
+    private int maxFlushDelayMillis = 2000;
     private int maxAttempts = 5;
     private FailedMessageHandler failedMessageHandler = null;
     private AtomicInteger failedMessageCount = new AtomicInteger();
@@ -84,7 +84,7 @@ public class Subscriber extends BasePubSub implements SubscriberMXBean {
                 logger.error("lookup error, ignoring nsqlookupd:{} topic:{}", lookup, topic, e);
             }
         }
-        logger.debug("lookup topic:{} result:{}", topic, nsqds);
+        //logger.debug("lookup topic:{} result:{}", topic, nsqds);
         return nsqds;
     }
 

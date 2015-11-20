@@ -133,14 +133,4 @@ public class PublishIT extends TestBase {
         testMultiPub(config);
     }
 
-    private void debugFail(List<String> msgs, List<String> received) {
-        assertEquals(msgs.size(), received.size());
-        for (int i = 0; i < msgs.size(); i++) {
-            System.out.println(msgs.get(i));
-            System.out.println(received.get(i));
-            assertEquals(msgs.get(i), received.get(i));
-            System.out.println();
-        }
-    }
-
 }

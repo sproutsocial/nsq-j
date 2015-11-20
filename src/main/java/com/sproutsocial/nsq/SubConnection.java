@@ -116,8 +116,8 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
                 return;
             }
             this.maxInFlight = maxInFlight;
-            maxUnflushed = Math.min(maxInFlight / 3, 150); //should this bec onfigurable?  FIN id\n is 21 bytes
-            logger.debug("RDY:{}", maxInFlight);
+            maxUnflushed = Math.min(maxInFlight / 3, 150); //should this be configurable?  FIN id\n is 21 bytes
+            logger.debug("RDY:{} {}", maxInFlight, toString());
             writeCommand("RDY", maxInFlight);
             flush();
         }
@@ -140,39 +140,45 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
         flushAndReadOK();
     }
 
+    private void failMessage(final NSQMessage msg) {
+        if (failedMessageHandler != null) {
+            executor.execute(new Runnable() {
+                public void run() {
+                    try {
+                        failedMessageHandler.failed(subscription.getTopic(), subscription.getChannel(), msg);
+                    }
+                    catch (Throwable t) {
+                        logger.error("failed message error", t);
+                    }
+                }
+            });
+        }
+        subscription.getSubscriber().messageFailed();
+        finish(msg.getId());
+    }
+
     @Override
     protected void onMessage(long timestamp, int attempts, String id, byte[] data) {
         final NSQMessage msg = new NSQMessage(timestamp, attempts, id, data, topic, this);
         synchronized (this) {
-            if (msg.getAttempts() >= maxAttemps - 1) {
-                if (failedMessageHandler != null) {
-                    executor.execute(new Runnable() {
-                        public void run() {
-                            try {
-                                failedMessageHandler.failed(subscription.getTopic(), subscription.getChannel(), msg);
-                            }
-                            catch (Throwable t) {
-                                logger.error("failed message error", t);
-                            }
-                        }
-                    });
-                }
-                subscription.getSubscriber().messageFailed();
-                return;
-            }
             inFlight++;
         }
-        executor.execute(new Runnable() {
-            public void run() {
-                try {
-                    handler.accept(msg);
+        if (msg.getAttempts() >= maxAttemps - 1) {
+            failMessage(msg);
+        }
+        else {
+            executor.execute(new Runnable() {
+                public void run() {
+                    try {
+                        handler.accept(msg);
+                    }
+                    catch (Throwable t) {
+                        subscription.getSubscriber().handlerError();
+                        logger.error("message error", t);
+                    }
                 }
-                catch (Throwable t) {
-                    subscription.getSubscriber().handlerError();
-                    logger.error("message error", t);
-                }
-            }
-        });
+            });
+        }
     }
 
     @Override

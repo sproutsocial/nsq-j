@@ -45,6 +45,7 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
 
     private static final ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
     private static final Set<String> nonFatalErrors = ImmutableSet.of("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED");
+    private static final String USER_AGENT = "nsq-j/0.1";
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
@@ -66,12 +67,12 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
         String response = readResponse();
 
         ServerConfig serverConfig = Client.mapper.readValue(response, ServerConfig.class);
-        logger.debug("serverConfig:{}", Client.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
+        //logger.debug("serverConfig:{}", Client.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
         setConfig(serverConfig);
         msgTimeout = firstNonNull(serverConfig.getMsgTimeout(), 60000);
         heartbeatInterval = firstNonNull(serverConfig.getHeartbeatInterval(), 30000);
         maxRdyCount = firstNonNull(serverConfig.getMaxRdyCount(), 2500);
-        logger.info("msgTimeout:{} heartbeatInterval:{} maxRdyCount:{}", msgTimeout, heartbeatInterval, maxRdyCount);
+        logger.info("connected {} msgTimeout:{} heartbeatInterval:{} maxRdyCount:{}", host, msgTimeout, heartbeatInterval, maxRdyCount);
 
         sock.setSoTimeout(heartbeatInterval + 5000);
 
@@ -99,12 +100,7 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
                 config.setHostname(pidHost.substring(pos + 1));
             }
         }
-        String version = getClass().getPackage().getImplementationVersion();
-        logger.debug("version:{}", version);
-        if (version == null || version.length() == 0) {
-            version = "dev";
-        }
-        config.setUserAgent("nsq-j/" + version);
+        config.setUserAgent(USER_AGENT);
         config.setFeatureNegotiation(true);
     }
 
@@ -220,7 +216,7 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
                 logger.error("read thread exception. con:{}", toString(), e);
             }
         }
-        logger.debug("read loop done");
+        logger.debug("read loop done {}", toString());
     }
 
     protected void onMessage(long timestamp, int attempts, String id, byte[] data) {

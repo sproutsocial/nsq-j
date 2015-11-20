@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.*;
 
@@ -25,9 +26,9 @@ public class Client {
     static final ObjectMapper mapper = new ObjectMapper();
     static final EventBus eventBus = new EventBus();
 
-    private static final Set<Publisher> publishers = Sets.newHashSet();
-    private static final Set<Subscriber> subscribers = Sets.newHashSet();
-    private static final Set<SubConnection> subConnections = Sets.newHashSet();
+    private static final Set<Publisher> publishers = Collections.newSetFromMap(new ConcurrentHashMap<Publisher, Boolean>());
+    private static final Set<Subscriber> subscribers = Collections.newSetFromMap(new ConcurrentHashMap<Subscriber, Boolean>());
+    private static final Set<SubConnection> subConnections = Collections.newSetFromMap(new ConcurrentHashMap<SubConnection, Boolean>());
     private static int subConnectionCount = 0;
 
     private static final NSQClient instance = new NSQClient();
@@ -139,7 +140,7 @@ public class Client {
 
     static ScheduledFuture scheduleAtFixedRate(final Runnable runnable, int initialDelay, int period, boolean jitter) {
         if (jitter) {
-            initialDelay = (int) (Math.random() * initialDelay);
+            initialDelay = (int) (initialDelay * 0.1 + Math.random() * initialDelay * 0.9);
         }
         return schedExecutor.scheduleAtFixedRate(new Runnable() {
             public void run() {
@@ -183,7 +184,7 @@ public class Client {
             long start = clock();
             stopSub(waitMillis);
 
-            if (executor != null) {
+            if (executor != null && !executor.isTerminated()) {
                 int timeout = Math.max((int) (waitMillis - (clock() - start)), 100);
                 MoreExecutors.shutdownAndAwaitTermination(executor, timeout, TimeUnit.MILLISECONDS);
             }

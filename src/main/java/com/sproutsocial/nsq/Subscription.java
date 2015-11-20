@@ -1,14 +1,16 @@
 package com.sproutsocial.nsq;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
@@ -64,7 +66,7 @@ class Subscription extends BasePubSub {
         }
         List<SubConnection> activeCons = Lists.newArrayList();
         List<SubConnection> inactiveCons = Lists.newArrayList();
-        long minActiveTime = Client.clock() - subscriber.getLookupIntervalSecs() * 300;
+        long minActiveTime = Client.clock() - subscriber.getLookupIntervalSecs() * 1000 * 30;
         for (SubConnection con : connectionMap.values()) {
             if (con.lastActionFlush < minActiveTime) {
                 inactiveCons.add(con);

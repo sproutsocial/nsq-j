@@ -99,4 +99,11 @@
 
     </dependencies>
 
+    <distributionManagement>
+        <repository>
+            <id>internal</id>
+            <url>http://sprout-archiva01.int.sproutsocial.com:8080/archiva/repository/internal/</url>
+        </repository>
+    </distributionManagement>
+
 </project>

@@ -8,6 +8,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -17,7 +18,7 @@ import static org.junit.Assert.assertEquals;
 //clases that end in IT are integration tests run by maven failsafe plugin
 public class SubscribeIT extends TestBase {
 
-    private List<String> received = Lists.newArrayList();
+    private List<String> received = Collections.synchronizedList(new ArrayList<String>());
     private MessageHandler handler;
 
     public SubscribeIT() {
@@ -90,6 +91,7 @@ public class SubscribeIT extends TestBase {
         subscriber.stop();
 
         Collections.sort(received);
+        //debugFail(received, msgs);
         assertEquals(msgs, received);
     }
 
@@ -121,7 +123,7 @@ public class SubscribeIT extends TestBase {
         post("localhost:4151", topic, "pub", "before disconnect");
         Util.sleepQuietly(2000);
 
-        Subscriber subscriber = new Subscriber(10, "127.0.0.1");
+        Subscriber subscriber = new Subscriber(4, "127.0.0.1");
         subscriber.setMaxInFlightPerSubscription(2);
         subscriber.subscribe(topic, "ch", handler);
         Util.sleepQuietly(2000);
