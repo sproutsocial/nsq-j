@@ -111,6 +111,10 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
     }
 
     public synchronized void setMaxInFlight(int maxInFlight) {
+        setMaxInFlight(maxInFlight, true);
+    }
+
+    public synchronized void setMaxInFlight(int maxInFlight, boolean isActive) {
         try {
             if (this.maxInFlight == maxInFlight) {
                 return;
@@ -119,7 +123,12 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
             maxUnflushed = Math.min(maxInFlight / 3, 150); //should this be configurable?  FIN id\n is 21 bytes
             logger.debug("RDY:{} {}", maxInFlight, toString());
             writeCommand("RDY", maxInFlight);
-            flush();
+            if (isActive) {
+                flush();
+            }
+            else {
+                out.flush(); //don't update lastActionFlush time - keep connection inactive
+            }
         }
         catch (IOException e) {
             logger.error("setMaxInFlight failed. con:{}", toString(), e);

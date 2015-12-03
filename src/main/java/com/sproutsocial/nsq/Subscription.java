@@ -80,7 +80,7 @@ class Subscription extends BasePubSub {
             inactiveCons.clear();
         }
         for (SubConnection con : inactiveCons) {
-            con.setMaxInFlight(1);
+            con.setMaxInFlight(1, false);
         }
         int f = subscriber.getMaxInFlightPerSubscription() - inactiveCons.size();
         int perCon = f / activeCons.size();
