@@ -8,11 +8,13 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 import org.powermock.reflect.Whitebox;
 
+import java.io.DataOutputStream;
 import java.util.*;
 
 import static org.junit.Assert.*;
@@ -62,6 +64,9 @@ public class SubscriptionTest {
             con.lastActionFlush = 5000; //so connections get removed during checkConnections
         }
         checkHosts(sub, numCons);
+        for (SubConnection con : conMap.values()) {
+            con.out = Mockito.mock(DataOutputStream.class);
+        }
         Set<SubConnection> allCons = new HashSet<SubConnection>(conMap.values());
         Set<SubConnection> active = setActive(numActive, allCons);
         Set<SubConnection> inactive = Sets.difference(allCons, active);
