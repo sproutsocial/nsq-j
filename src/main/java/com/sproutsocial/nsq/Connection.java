@@ -260,6 +260,7 @@ abstract class Connection extends BasePubSub implements Closeable, ConnectionMXB
         isReading = false;
         Util.closeQuietly(out);
         Util.closeQuietly(in);
+        cancelTasks();
         Client.eventBus.post(this);
         logger.debug("connection closed:{}", toString());
     }

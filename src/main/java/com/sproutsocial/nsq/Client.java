@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.google.common.collect.Sets;
+import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -201,6 +202,7 @@ public class Client {
         }
 
         @Subscribe
+        @AllowConcurrentEvents
         public synchronized void connectionClosed(Connection closedCon) {
             disconnectionCount++;
             if (closedCon instanceof SubConnection) {

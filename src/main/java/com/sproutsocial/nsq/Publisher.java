@@ -1,5 +1,6 @@
 package com.sproutsocial.nsq;
 
+import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.net.HostAndPort;
 import com.sproutsocial.nsq.jmx.PublisherMXBean;
@@ -59,6 +60,7 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
     }
 
     @Subscribe
+    @AllowConcurrentEvents
     public synchronized void connectionClosed(Connection closedCon) {
         if (con == closedCon) {
             con = null;

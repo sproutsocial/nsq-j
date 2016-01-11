@@ -1,6 +1,7 @@
 package com.sproutsocial.nsq;
 
 import com.google.common.collect.Lists;
+import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
@@ -146,8 +147,10 @@ class Subscription extends BasePubSub {
     }
 
     @Subscribe
+    @AllowConcurrentEvents
     public synchronized void connectionClosed(Connection closedCon) {
-        if (connectionMap.remove(closedCon.getHost()) != null) {
+        if (connectionMap.get(closedCon.getHost()) == closedCon) {
+            connectionMap.remove(closedCon.getHost());
             logger.debug("removed:{} from subscription:{}", closedCon.getHost(), topic);
         }
     }

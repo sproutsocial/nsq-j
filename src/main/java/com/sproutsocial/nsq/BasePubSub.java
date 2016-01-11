@@ -26,6 +26,10 @@ class BasePubSub {
 
     public void stop() {
         isStopping = true;
+        cancelTasks();
+    }
+
+    protected void cancelTasks() {
         for (ScheduledFuture task : tasks) {
             task.cancel(false);
         }
