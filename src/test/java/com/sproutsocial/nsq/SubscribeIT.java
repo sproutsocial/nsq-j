@@ -1,7 +1,6 @@
 package com.sproutsocial.nsq;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -18,8 +17,8 @@ import static org.junit.Assert.assertEquals;
 //clases that end in IT are integration tests run by maven failsafe plugin
 public class SubscribeIT extends TestBase {
 
-    private List<String> received = Collections.synchronizedList(new ArrayList<String>());
-    private MessageHandler handler;
+    private final List<String> received = Collections.synchronizedList(new ArrayList<String>());
+    private final MessageHandler handler;
 
     public SubscribeIT() {
         handler = new MessageHandler() {

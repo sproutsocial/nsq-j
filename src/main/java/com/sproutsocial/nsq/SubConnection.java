@@ -7,11 +7,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 
-class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubConnectionMXBean {
+class SubConnection extends Connection {
 
     private final MessageHandler handler;
     private final FailedMessageHandler failedMessageHandler;
-    private final ExecutorService executor;
     private final Subscription subscription;
     private final String topic;
     private final int maxAttemps;
@@ -20,7 +19,6 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
     private int maxInFlight = 1;
     private int maxUnflushed = 0;
 
-    private int subConId = 0;
     private long finishedCount = 0;
     private long requeuedCount = 0;
 
@@ -31,7 +29,6 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
         Subscriber subscriber = subscription.getSubscriber();
         this.handler = subscription.getHandler();
         this.failedMessageHandler = subscriber.getFailedMessageHandler();
-        this.executor = Client.getExecutor();
         this.subscription = subscription;
         this.topic = subscription.getTopic();
         this.maxAttemps = subscriber.getMaxAttempts();
@@ -136,7 +133,6 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
         }
     }
 
-    @Override
     public synchronized int getMaxInFlight() {
         return maxInFlight;
     }
@@ -162,7 +158,6 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
                 }
             });
         }
-        subscription.getSubscriber().messageFailed();
         finish(msg.getId());
     }
 
@@ -172,7 +167,7 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
         synchronized (this) {
             inFlight++;
         }
-        if (msg.getAttempts() >= maxAttemps - 1) {
+        if (msg.getAttempts() >= maxAttemps) {
             failMessage(msg);
         }
         else {
@@ -182,12 +177,23 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
                         handler.accept(msg);
                     }
                     catch (Throwable t) {
-                        subscription.getSubscriber().handlerError();
                         logger.error("message error", t);
                     }
                 }
             });
         }
+    }
+
+    @Override
+    public void close() {
+        super.close();
+        //be paranoid about locks, we only care that this happens sometime soon
+        executor.execute(new Runnable() {
+            public void run() {
+                subscription.connectionClosed(SubConnection.this);
+                Client.connectionClosed(SubConnection.this);
+            }
+        });
     }
 
     @Override
@@ -203,54 +209,12 @@ class SubConnection extends Connection implements com.sproutsocial.nsq.jmx.SubCo
 
     @Override
     public synchronized String toString() {
-        return super.toString() + String.format(" %s inFlight:%d maxInFlight:%d fin:%d req:%d",
+        return super.toString() + String.format(" sub %s inFlight:%d maxInFlight:%d fin:%d req:%d",
                 getTopicChannelString(), inFlight, maxInFlight, finishedCount, requeuedCount);
     }
 
     public synchronized String getTopicChannelString() {
         return subscription.getTopic() + "." + subscription.getChannel();
-    }
-
-    public synchronized String getName() {
-        return host.getHostText() + "+" + subConId;
-    }
-
-    public synchronized int getSubConId() {
-        return subConId;
-    }
-
-    public synchronized void setSubConId(int subConId) {
-        this.subConId = subConId;
-    }
-
-    @Override
-    public synchronized int getMaxAttemps() {
-        return maxAttemps;
-    }
-
-    @Override
-    public synchronized int getMaxFlushDelayMillis() {
-        return maxFlushDelayMillis;
-    }
-
-    @Override
-    public synchronized int getInFlight() {
-        return inFlight;
-    }
-
-    @Override
-    public synchronized int getMaxUnflushed() {
-        return maxUnflushed;
-    }
-
-    @Override
-    public synchronized long getRequeuedCount() {
-        return requeuedCount;
-    }
-
-    @Override
-    public synchronized long getFinishedCount() {
-        return finishedCount;
     }
 
 }

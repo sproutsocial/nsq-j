@@ -1,9 +1,14 @@
 package com.sproutsocial.nsq;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 
 public class MiscMain {
+
+    private static Publisher loadPublisher;
+    private static Random rand = new Random(83483839L);
 
     public static void handle(Message msg) {
         System.out.println("msg:" + new String(msg.getData()));
@@ -13,7 +18,6 @@ public class MiscMain {
     }
 
     public static void testPub() {
-        Config config = new Config();
         Publisher publisher = new Publisher("localhost");
         for (int i = 0; i < 5; i++) {
             System.out.println("pub " + i);
@@ -87,6 +91,36 @@ public class MiscMain {
         System.out.println("Client.stop done");
     }
 
+    public static void handleLoad(Message msg) {
+        String text = new String(msg.getData());
+        if (rand.nextFloat() < 0.5) {
+            text = "PUB " + text;
+            loadPublisher.publish("load-repub", text.getBytes());
+        }
+        if (rand.nextFloat() < 0.001) {
+            System.out.println(text);
+        }
+        msg.finish();
+    }
+
+    public static void testLoad() {
+        Config config = new Config();
+        Subscriber subscriber = new Subscriber(30, "localhost");
+        subscriber.setMaxInFlightPerSubscription(500);
+        System.out.println("created subscriber");
+
+        loadPublisher = new Publisher("localhost", "localhost:5150");
+        System.out.println("created publisher");
+
+        subscriber.subscribe("load", "test", new MessageHandler() {
+            public void accept(Message msg) {
+                handleLoad(msg);
+            }
+        });
+        System.out.println("subscribed");
+
+    }
+
     public static void main(String[] args) {
         try {
             //nohup nsqd -lookupd-tcp-address=localhost:4160 -broadcast-address=192.168.1.101 > log-nsqd 2>&1 &
@@ -94,7 +128,9 @@ public class MiscMain {
 
             //testPub();
 
-            testSub();
+            testLoad();
+
+            Util.sleepQuietly(3000000);
 
             //List<String> prodLookups = Arrays.asList("nsq-lookup01", "nsq-lookup02", "nsq-lookup03");
 

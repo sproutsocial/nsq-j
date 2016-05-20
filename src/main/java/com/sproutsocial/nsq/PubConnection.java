@@ -7,8 +7,11 @@ import java.util.List;
 
 class PubConnection extends Connection {
 
-    public PubConnection(HostAndPort host) {
+    private final Publisher publisher;
+
+    public PubConnection(HostAndPort host, Publisher publisher) {
         super(host);
+        this.publisher = publisher;
     }
 
     public synchronized void publish(String topic, byte[] data) throws IOException {
@@ -34,7 +37,20 @@ class PubConnection extends Connection {
     }
 
     @Override
-    public synchronized String toString() {
+    public void close() {
+        super.close();
+        if (!publisher.isStopping) {
+            //be paranoid about locks, we only care that this happens sometime soon
+            executor.execute(new Runnable() {
+                public void run() {
+                    publisher.connectionClosed(PubConnection.this);
+                }
+            });
+        }
+    }
+
+    @Override
+    public String toString() {
         return super.toString() + " pub";
     }
 

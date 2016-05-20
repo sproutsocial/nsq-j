@@ -5,6 +5,9 @@ import com.google.common.net.HostAndPort;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Subscribe from a given set of nsqd hosts instead of using the lookup service.
+ */
 public class DirectSubscriber extends Subscriber {
 
     private final Set<HostAndPort> nsqds = new HashSet<HostAndPort>();

@@ -31,7 +31,6 @@ class Subscription extends BasePubSub {
         this.channel = channel;
         this.handler = handler;
         this.subscriber = subscriber;
-        Client.eventBus.register(this);
     }
 
     public synchronized void checkConnections(Set<HostAndPort> activeHosts) {
@@ -137,18 +136,18 @@ class Subscription extends BasePubSub {
     }
 
     @Override
-    public synchronized void stop() {
+    public void stop() {
         super.stop();
-        Util.cancel(lowFlightRotateTask);
-        lowFlightRotateTask = null;
+        synchronized (this) {
+            Util.cancel(lowFlightRotateTask);
+            lowFlightRotateTask = null;
+        }
         for (SubConnection con : connectionMap.values()) {
             con.stop();
         }
     }
 
-    @Subscribe
-    @AllowConcurrentEvents
-    public synchronized void connectionClosed(Connection closedCon) {
+    public synchronized void connectionClosed(SubConnection closedCon) {
         if (connectionMap.get(closedCon.getHost()) == closedCon) {
             connectionMap.remove(closedCon.getHost());
             logger.debug("removed:{} from subscription:{}", closedCon.getHost(), topic);

@@ -1,14 +1,15 @@
 package com.sproutsocial.nsq;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 
 class BasePubSub {
 
     protected Config config = new Config();
-    protected List<ScheduledFuture> tasks = new ArrayList<ScheduledFuture>();
     protected volatile boolean isStopping = false;
+    private final List<ScheduledFuture> tasks = Collections.synchronizedList(new ArrayList<ScheduledFuture>());
 
     public synchronized Config getConfig() {
         return config;

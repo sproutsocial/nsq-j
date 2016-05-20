@@ -5,7 +5,6 @@ import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
 import com.google.common.net.HostAndPort;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -20,7 +19,6 @@ import java.util.*;
 import static org.junit.Assert.*;
 import static org.powermock.api.mockito.PowerMockito.methods;
 import static org.powermock.api.mockito.PowerMockito.suppress;
-import static org.powermock.api.support.membermodification.MemberMatcher.constructor;
 
 //to prepare multiple classes
 //@PrepareForTest({SubConnection.class, Client.class})

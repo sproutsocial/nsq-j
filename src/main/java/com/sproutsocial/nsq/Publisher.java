@@ -1,27 +1,20 @@
 package com.sproutsocial.nsq;
 
-import com.google.common.eventbus.AllowConcurrentEvents;
-import com.google.common.eventbus.Subscribe;
 import com.google.common.net.HostAndPort;
-import com.sproutsocial.nsq.jmx.PublisherMXBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 
-public class Publisher extends BasePubSub implements PublisherMXBean {
+public class Publisher extends BasePubSub {
 
     private final HostAndPort nsqd;
     private final HostAndPort failoverNsqd;
     private PubConnection con;
     private boolean isFailover = false;
     private long failoverStart;
-    private int failoverDurationSecs = 30;
-
-    private long publishedCount = 0;
-    private long publishedFailoverCount = 0;
-    private long publishFailedCount = 0;
+    private int failoverDurationSecs = 300;
 
     private static final Logger logger = LoggerFactory.getLogger(Publisher.class);
 
@@ -29,7 +22,6 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
         this.nsqd = HostAndPort.fromString(nsqd).withDefaultPort(4150);
         this.failoverNsqd = failoverNsqd != null ? HostAndPort.fromString(failoverNsqd).withDefaultPort(4150) : null;
         Client.addPublisher(this);
-        Client.eventBus.register(this);
     }
 
     public Publisher(String nsqd) {
@@ -54,17 +46,15 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
         if (con != null) {
             con.close();
         }
-        con = new PubConnection(host);
+        con = new PubConnection(host, this);
         con.connect(config);
         logger.info("publisher connected:{}", host);
     }
 
-    @Subscribe
-    @AllowConcurrentEvents
-    public synchronized void connectionClosed(Connection closedCon) {
+    public synchronized void connectionClosed(PubConnection closedCon) {
         if (con == closedCon) {
             con = null;
-            logger.debug("removed closed connection:{}", closedCon.getHost());
+            logger.debug("removed closed publisher connection:{}", closedCon.getHost());
         }
     }
 
@@ -72,10 +62,9 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
         try {
             checkConnection();
             con.publish(topic, data);
-            publishedCount++;
         }
-        catch (IOException e) {
-            logger.warn("io error with:{} {}", isFailover ? failoverNsqd : nsqd, e);
+        catch (Exception e) {
+            logger.warn("publish error with:{} {}", isFailover ? failoverNsqd : nsqd, e);
             publishFailover(topic, data);
         }
     }
@@ -84,10 +73,9 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
         try {
             checkConnection();
             con.publish(topic, dataList);
-            publishedCount += dataList.size();
         }
-        catch (IOException e) {
-            logger.warn("io error with:{} {}", isFailover ? failoverNsqd : nsqd, e);
+        catch (Exception e) {
+            logger.warn("publish error with:{} {}", isFailover ? failoverNsqd : nsqd, e);
             for (byte[] data : dataList) {
                 publishFailover(topic, data);
             }
@@ -108,12 +96,10 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
                 logger.info("using failover nsqd:{}", failoverNsqd);
             }
             con.publish(topic, data);
-            publishedFailoverCount++;
         }
-        catch (IOException e) {
+        catch (Exception e) {
             Util.closeQuietly(con);
             con = null;
-            publishFailedCount++;
             throw new NSQException("publish failed", e);
         }
     }
@@ -125,49 +111,12 @@ public class Publisher extends BasePubSub implements PublisherMXBean {
         con = null;
     }
 
-    @Override
-    public String getNsqd() {
-        return nsqd.toString();
-    }
-
-    @Override
-    public String getFailoverNsqd() {
-        return failoverNsqd.toString();
-    }
-
-    @Override
     public synchronized int getFailoverDurationSecs() {
         return failoverDurationSecs;
     }
 
-    @Override
     public synchronized void setFailoverDurationSecs(int failoverDurationSecs) {
         this.failoverDurationSecs = failoverDurationSecs;
-    }
-
-    @Override
-    public synchronized boolean isFailover() {
-        return isFailover;
-    }
-
-    @Override
-    public synchronized boolean isConnected() {
-        return con != null;
-    }
-
-    @Override
-    public synchronized long getPublishedCount() {
-        return publishedCount;
-    }
-
-    @Override
-    public synchronized long getPublishedFailoverCount() {
-        return publishedFailoverCount;
-    }
-
-    @Override
-    public synchronized long getPublishFailedCount() {
-        return publishFailedCount;
     }
 
 }

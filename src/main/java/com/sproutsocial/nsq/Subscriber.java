@@ -3,7 +3,6 @@ package com.sproutsocial.nsq;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
-import com.sproutsocial.nsq.jmx.SubscriberMXBean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,17 +15,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class Subscriber extends BasePubSub implements SubscriberMXBean {
+public class Subscriber extends BasePubSub {
 
     private final List<HostAndPort> lookups = Lists.newArrayList();
     private final List<Subscription> subscriptions = Lists.newArrayList();
     private final int lookupIntervalSecs;
     private int maxInFlightPerSubscription = 200;
     private int maxFlushDelayMillis = 2000;
-    private int maxAttempts = 5;
+    private int maxAttempts = Integer.MAX_VALUE;
     private FailedMessageHandler failedMessageHandler = null;
-    private AtomicInteger failedMessageCount = new AtomicInteger();
-    private AtomicInteger handlerErrorCount = new AtomicInteger();
 
     private static final Logger logger = LoggerFactory.getLogger(Subscriber.class);
 
@@ -89,7 +86,7 @@ public class Subscriber extends BasePubSub implements SubscriberMXBean {
     }
 
     @Override
-    public synchronized void stop() {
+    public void stop() {
         super.stop();
         for (Subscription subscription : subscriptions) {
             subscription.stop();
@@ -97,12 +94,10 @@ public class Subscriber extends BasePubSub implements SubscriberMXBean {
         logger.info("subscriber stopped");
     }
 
-    @Override
     public synchronized int getMaxInFlightPerSubscription() {
         return maxInFlightPerSubscription;
     }
 
-    @Override
     public synchronized void setMaxInFlightPerSubscription(int maxInFlightPerSubscription) {
         this.maxInFlightPerSubscription = maxInFlightPerSubscription;
         for (Subscription subscription : subscriptions) {
@@ -110,22 +105,18 @@ public class Subscriber extends BasePubSub implements SubscriberMXBean {
         }
     }
 
-    @Override
     public synchronized int getMaxFlushDelayMillis() {
         return maxFlushDelayMillis;
     }
 
-    @Override
     public synchronized void setMaxFlushDelayMillis(int maxFlushDelayMillis) {
         this.maxFlushDelayMillis = maxFlushDelayMillis;
     }
 
-    @Override
     public synchronized int getMaxAttempts() {
         return maxAttempts;
     }
 
-    @Override
     public synchronized void setMaxAttempts(int maxAttempts) {
         this.maxAttempts = maxAttempts;
     }
@@ -138,42 +129,13 @@ public class Subscriber extends BasePubSub implements SubscriberMXBean {
         this.failedMessageHandler = failedMessageHandler;
     }
 
-    @Override
     public synchronized int getLookupIntervalSecs() {
         return lookupIntervalSecs;
-    }
-
-    @Override
-    public synchronized List<String> getLookups() {
-        return Util.sortedStrings(lookups);
-    }
-
-    @Override
-    public synchronized List<String> getSubscriptions() {
-        return Util.sortedStrings(subscriptions);
     }
 
     public Integer getExecutorQueueSize() {
         ExecutorService executor = Client.getExecutor();
         return executor instanceof ThreadPoolExecutor ? ((ThreadPoolExecutor)executor).getQueue().size() : null;
-    }
-
-    @Override
-    public int getFailedMessageCount() {
-        return failedMessageCount.get();
-    }
-
-    @Override
-    public int getHandlerErrorCount() {
-        return handlerErrorCount.get();
-    }
-
-    public void messageFailed() {
-        failedMessageCount.incrementAndGet();
-    }
-
-    public void handlerError() {
-        handlerErrorCount.incrementAndGet();
     }
 
     public synchronized int getConnectionCount() {
