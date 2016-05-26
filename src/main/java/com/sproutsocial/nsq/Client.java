@@ -11,9 +11,11 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.*;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Preconditions.*;
 
+/**
+ * Thread safe
+ */
 public class Client {
 
     static final ObjectMapper mapper = new ObjectMapper();
@@ -41,6 +43,7 @@ public class Client {
      * @param waitMillis Time to wait for everything to stop, in milliseconds. Soft limit that may be exceeded by about 200 ms.
      */
     public static synchronized boolean stop(int waitMillis) {
+        checkArgument(waitMillis > 0, "waitMillis must be greater than zero");
         logger.info("stopping nsq client");
         boolean isClean = true;
         long start = clock();
@@ -70,6 +73,7 @@ public class Client {
      * @param waitMillis Time to wait for in-flight messages to be finished, in milliseconds.
      */
     public static synchronized boolean stopSubscribers(int waitMillis) {
+        checkArgument(waitMillis > 0, "waitMillis must be greater than zero");
         for (Subscriber subscriber : subscribers) {
             subscriber.stop();
         }

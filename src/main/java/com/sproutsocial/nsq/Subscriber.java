@@ -13,8 +13,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+/**
+ * Thread safe
+ */
 public class Subscriber extends BasePubSub {
 
     private final List<HostAndPort> lookups = Lists.newArrayList();
@@ -28,6 +33,7 @@ public class Subscriber extends BasePubSub {
     private static final Logger logger = LoggerFactory.getLogger(Subscriber.class);
 
     protected Subscriber(int lookupIntervalSecs) {
+        checkArgument(lookupIntervalSecs > 0, "lookupIntervalSecs must be greater than zero");
         this.lookupIntervalSecs = lookupIntervalSecs;
         scheduleAtFixedRate(new Runnable() {
             public void run() {
@@ -43,7 +49,15 @@ public class Subscriber extends BasePubSub {
         }
     }
 
+    /**
+     * Subscribe to a topic.
+     * If the configured executor is multi-threaded (by default it uses 6 threads)
+     * then the MessageHandler must be thread safe.
+     */
     public synchronized void subscribe(String topic, String channel, MessageHandler handler) {
+        checkNotNull(topic);
+        checkNotNull(channel);
+        checkNotNull(handler);
         Client.addSubscriber(this);
         Subscription sub = new Subscription(topic, channel, handler, this);
         subscriptions.add(sub);

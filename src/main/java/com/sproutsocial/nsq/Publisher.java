@@ -7,6 +7,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.List;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+/**
+ * Thread safe
+ */
 public class Publisher extends BasePubSub {
 
     private final HostAndPort nsqd;
@@ -59,6 +65,9 @@ public class Publisher extends BasePubSub {
     }
 
     public synchronized void publish(String topic, byte[] data) {
+        checkNotNull(topic);
+        checkNotNull(data);
+        checkArgument(data.length > 0);
         try {
             checkConnection();
             con.publish(topic, data);
@@ -70,6 +79,9 @@ public class Publisher extends BasePubSub {
     }
 
     public synchronized void publish(String topic, List<byte[]> dataList) {
+        checkNotNull(topic);
+        checkNotNull(dataList);
+        checkArgument(dataList.size() > 0);
         try {
             checkConnection();
             con.publish(topic, dataList);

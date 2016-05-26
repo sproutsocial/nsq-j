@@ -66,7 +66,7 @@ abstract class Connection extends BasePubSub implements Closeable {
         String response = readResponse();
 
         ServerConfig serverConfig = Client.mapper.readValue(response, ServerConfig.class);
-        logger.debug("serverConfig:{}", Client.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
+        //logger.debug("serverConfig:{}", Client.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
         setConfig(serverConfig);
         msgTimeout = firstNonNull(serverConfig.getMsgTimeout(), 60000);
         heartbeatInterval = firstNonNull(serverConfig.getHeartbeatInterval(), 30000);
@@ -133,7 +133,7 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     private synchronized void checkHeartbeat() {
         try {
-            logger.debug("checkHeartbeat {}", toString());
+            //logger.debug("checkHeartbeat {}", toString());
             long now = Client.clock();
             if (now - lastHeartbeat > 2 * heartbeatInterval) {
                 logger.info("heartbeat failed, closing connection:{}", toString());
@@ -266,7 +266,7 @@ abstract class Connection extends BasePubSub implements Closeable {
         close();
     }
 
-    public synchronized void close() {
+    public void close() {
         isReading = false;
         Util.closeQuietly(out);
         Util.closeQuietly(in);
