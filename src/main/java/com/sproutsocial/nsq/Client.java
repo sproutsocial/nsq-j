@@ -106,10 +106,10 @@ public class Client {
         return isClean;
     }
 
-    public synchronized void setExecutor(ExecutorService executor) {
-        checkNotNull(executor);
-        checkState(executor == null, "executor can only be set once, must be set before subscribing");
-        this.executor = executor;
+    public synchronized void setExecutor(ExecutorService exec) {
+        checkNotNull(exec);
+        checkState(this.executor == null, "executor can only be set once, must be set before subscribing");
+        this.executor = exec;
     }
 
     public synchronized ExecutorService getExecutor() {

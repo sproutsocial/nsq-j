@@ -16,6 +16,10 @@ class BasePubSub {
         this.client = client;
     }
 
+    public final Client getClient() {
+        return client;
+    }
+
     public synchronized Config getConfig() {
         return config;
     }
