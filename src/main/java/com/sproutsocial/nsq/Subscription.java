@@ -26,7 +26,8 @@ class Subscription extends BasePubSub {
 
     private static final Logger logger = LoggerFactory.getLogger(Subscription.class);
 
-    public Subscription(String topic, String channel, MessageHandler handler, Subscriber subscriber) {
+    public Subscription(Client client, String topic, String channel, MessageHandler handler, Subscriber subscriber) {
+        super(client);
         this.topic = topic;
         this.channel = channel;
         this.handler = handler;
@@ -37,7 +38,7 @@ class Subscription extends BasePubSub {
         for (Iterator<SubConnection> iter = connectionMap.values().iterator(); iter.hasNext();) {
             SubConnection con  = iter.next();
             if (!activeHosts.contains(con.getHost())) {
-                if (Client.clock() - con.getLastActionFlush() > con.getMsgTimeout() * 100) {
+                if (client.clock() - con.getLastActionFlush() > con.getMsgTimeout() * 100) {
                     logger.info("closing inactive connection:{} topic:{}", con.getHost(), topic);
                     iter.remove();
                     con.close();
@@ -48,7 +49,7 @@ class Subscription extends BasePubSub {
             if (!connectionMap.containsKey(activeHost)) {
                 try {
                     logger.info("adding new connection:{} topic:{}", activeHost, topic);
-                    SubConnection con = new SubConnection(activeHost, this);
+                    SubConnection con = new SubConnection(client, activeHost, this);
                     con.connect(subscriber.getConfig());
                     connectionMap.put(activeHost, con);
                 }
@@ -66,7 +67,7 @@ class Subscription extends BasePubSub {
         }
         List<SubConnection> activeCons = Lists.newArrayList();
         List<SubConnection> inactiveCons = Lists.newArrayList();
-        long minActiveTime = Client.clock() - subscriber.getLookupIntervalSecs() * 1000 * 30;
+        long minActiveTime = client.clock() - subscriber.getLookupIntervalSecs() * 1000 * 30;
         for (SubConnection con : connectionMap.values()) {
             if (con.lastActionFlush < minActiveTime) {
                 inactiveCons.add(con);
@@ -98,7 +99,7 @@ class Subscription extends BasePubSub {
     private boolean checkLowFlight() {
         if (subscriber.getMaxInFlightPerSubscription() < connectionMap.size()) {
             if (lowFlightRotateTask == null) {
-                lowFlightRotateTask = Client.scheduleAtFixedRate(new Runnable() {
+                lowFlightRotateTask = client.scheduleAtFixedRate(new Runnable() {
                     public void run() {
                         rotateLowFlight();
                     }

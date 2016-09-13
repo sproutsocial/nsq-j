@@ -39,9 +39,10 @@ public class SubscriptionTest {
 
     @Test
     public void testDistributeInFlight() throws Exception {
-        Subscriber subscriber = new Subscriber(30);
+        Client client = new Client();
+        Subscriber subscriber = new Subscriber(client, 30);
         subscriber.setMaxInFlightPerSubscription(200);
-        Subscription sub = new Subscription("topic", "channel", null, subscriber);
+        Subscription sub = new Subscription(client, "topic", "channel", null, subscriber);
 
         testInFlight(1, 1, sub, 200);
         testInFlight(2, 2, sub, 100, 100);
@@ -108,8 +109,9 @@ public class SubscriptionTest {
 
     @Test
     public void testLowFlight() throws Exception {
-        Subscriber subscriber = new Subscriber(30);
-        Subscription sub = new Subscription("topic", "channel", null, subscriber);
+        Client client = new Client();
+        Subscriber subscriber = new Subscriber(client, 30);
+        Subscription sub = new Subscription(client, "topic", "channel", null, subscriber);
 
         testLowFlight(subscriber, sub, 2, 3);
         testLowFlight(subscriber, sub, 1, 2);

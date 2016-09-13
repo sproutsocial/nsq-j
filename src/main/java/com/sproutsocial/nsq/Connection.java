@@ -47,9 +47,10 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
-    public Connection(HostAndPort host) {
+    public Connection(Client client, HostAndPort host) {
+        super(client);
         this.host = host;
-        this.executor = Client.getExecutor();
+        this.executor = client.getExecutor();
     }
 
     public synchronized void connect(Config config) throws IOException {
@@ -61,11 +62,11 @@ abstract class Connection extends BasePubSub implements Closeable {
         out.write("  V2".getBytes());
 
         out.write("IDENTIFY\n".getBytes());
-        write(Client.mapper.writeValueAsBytes(config));
+        write(client.getObjectMapper().writeValueAsBytes(config));
         out.flush();
         String response = readResponse();
 
-        ServerConfig serverConfig = Client.mapper.readValue(response, ServerConfig.class);
+        ServerConfig serverConfig = client.getObjectMapper().readValue(response, ServerConfig.class);
         //logger.debug("serverConfig:{}", Client.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
         setConfig(serverConfig);
         msgTimeout = firstNonNull(serverConfig.getMsgTimeout(), 60000);

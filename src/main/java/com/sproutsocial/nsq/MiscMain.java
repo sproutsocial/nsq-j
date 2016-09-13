@@ -63,12 +63,13 @@ public class MiscMain {
 
     public static void testSub() {
         Config config = new Config();
+        Client client = new Client();
         //config.setDeflate(true);
         //config.setDeflateLevel(6);
         //config.setSnappy(true);
         config.setMsgTimeout(25000);
         //DirectSubscriber subscriber = new DirectSubscriber(30, "localhost");
-        Subscriber subscriber = new Subscriber(30, "localhost");
+        Subscriber subscriber = new Subscriber(client, 30, "localhost");
         subscriber.setMaxInFlightPerSubscription(2);
         System.out.println("created subscriber");
 
@@ -80,14 +81,14 @@ public class MiscMain {
         System.out.println("subscribed");
 
         Util.sleepQuietly(1000);
-        Publisher publisher = new Publisher("localhost");
+        Publisher publisher = new Publisher(client, "localhost", null);
         publisher.publish("test1", "from java".getBytes());
         //Util.sleepQuietly(30000);
         //subscriber.setMaxInFlightPerSubscription(1);
 
         Util.sleepQuietly(3000000);
         System.out.println("calling Client.stop");
-        Client.stop(30000);
+        client.stop(30000);
         System.out.println("Client.stop done");
     }
 

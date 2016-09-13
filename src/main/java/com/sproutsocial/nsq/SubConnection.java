@@ -24,8 +24,8 @@ class SubConnection extends Connection {
 
     private static final Logger logger = LoggerFactory.getLogger(SubConnection.class);
 
-    public SubConnection(HostAndPort host, Subscription subscription) {
-        super(host);
+    public SubConnection(Client client, HostAndPort host, Subscription subscription) {
+        super(client, host);
         Subscriber subscriber = subscription.getSubscriber();
         this.handler = subscription.getHandler();
         this.failedMessageHandler = subscriber.getFailedMessageHandler();
@@ -139,7 +139,7 @@ class SubConnection extends Connection {
 
     @Override
     public synchronized void connect(Config config) throws IOException {
-        Client.addSubConnection(this);
+        client.addSubConnection(this);
         super.connect(config);
         writeCommand("SUB", subscription.getTopic(), subscription.getChannel());
         flushAndReadOK();
@@ -191,7 +191,7 @@ class SubConnection extends Connection {
         executor.execute(new Runnable() {
             public void run() {
                 subscription.connectionClosed(SubConnection.this);
-                Client.connectionClosed(SubConnection.this);
+                client.connectionClosed(SubConnection.this);
             }
         });
     }

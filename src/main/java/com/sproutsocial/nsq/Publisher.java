@@ -24,10 +24,15 @@ public class Publisher extends BasePubSub {
 
     private static final Logger logger = LoggerFactory.getLogger(Publisher.class);
 
-    public Publisher(String nsqd, String failoverNsqd) {
+    public Publisher(Client client, String nsqd, String failoverNsqd) {
+        super(client);
         this.nsqd = HostAndPort.fromString(nsqd).withDefaultPort(4150);
         this.failoverNsqd = failoverNsqd != null ? HostAndPort.fromString(failoverNsqd).withDefaultPort(4150) : null;
-        Client.addPublisher(this);
+        client.addPublisher(this);
+    }
+
+    public Publisher(String nsqd, String failoverNsqd) {
+        this(Client.getDefaultClient(), nsqd, failoverNsqd);
     }
 
     public Publisher(String nsqd) {
@@ -41,7 +46,7 @@ public class Publisher extends BasePubSub {
             }
             connect(nsqd);
         }
-        else if (isFailover && Client.clock() - failoverStart > failoverDurationSecs * 1000) {
+        else if (isFailover && client.clock() - failoverStart > failoverDurationSecs * 1000) {
             connect(nsqd);
             isFailover = false;
             logger.info("using primary nsqd");
@@ -52,7 +57,7 @@ public class Publisher extends BasePubSub {
         if (con != null) {
             con.close();
         }
-        con = new PubConnection(host, this);
+        con = new PubConnection(client, host, this);
         con.connect(config);
         logger.info("publisher connected:{}", host);
     }
@@ -102,7 +107,7 @@ public class Publisher extends BasePubSub {
                 connect(nsqd);
             }
             else if (!isFailover) {
-                failoverStart = Client.clock();
+                failoverStart = client.clock();
                 isFailover = true;
                 connect(failoverNsqd);
                 logger.info("using failover nsqd:{}", failoverNsqd);

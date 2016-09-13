@@ -32,21 +32,22 @@ public class Subscriber extends BasePubSub {
 
     private static final Logger logger = LoggerFactory.getLogger(Subscriber.class);
 
-    protected Subscriber(int lookupIntervalSecs) {
+    public Subscriber(Client client, int lookupIntervalSecs, String... lookupHosts) {
+        super(client);
         checkArgument(lookupIntervalSecs > 0, "lookupIntervalSecs must be greater than zero");
         this.lookupIntervalSecs = lookupIntervalSecs;
-        scheduleAtFixedRate(new Runnable() {
-            public void run() {
-                lookup();
-            }
-        }, lookupIntervalSecs * 1000, lookupIntervalSecs * 1000, true);
-    }
-
-    public Subscriber(int lookupIntervalSecs, String... lookupHosts) {
-        this(lookupIntervalSecs);
+        client.scheduleAtFixedRate(new Runnable() {
+                public void run() {
+                    lookup();
+                }
+            }, lookupIntervalSecs * 1000, lookupIntervalSecs * 1000, true);
         for (String h : lookupHosts) {
             lookups.add(HostAndPort.fromString(h).withDefaultPort(4161));
         }
+    }
+
+    public Subscriber(int lookupIntervalSecs, String... lookupHosts) {
+        this(Client.getDefaultClient(), lookupIntervalSecs, lookupHosts);
     }
 
     /**
@@ -58,8 +59,8 @@ public class Subscriber extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(channel);
         checkNotNull(handler);
-        Client.addSubscriber(this);
-        Subscription sub = new Subscription(topic, channel, handler, this);
+        client.addSubscriber(this);
+        Subscription sub = new Subscription(client, topic, channel, handler, this);
         subscriptions.add(sub);
         sub.checkConnections(lookupTopic(topic));
     }
@@ -83,7 +84,7 @@ public class Subscriber extends BasePubSub {
                     logger.debug("ignoring lookup resp:{} nsqlookupd:{} topic:{}", con.getResponseCode(), lookup, topic);
                     continue;
                 }
-                JsonNode root = Client.mapper.readTree(con.getInputStream()); //don't need another buffer here, jackson buffers
+                JsonNode root = client.getObjectMapper().readTree(con.getInputStream()); //don't need another buffer here, jackson buffers
                 JsonNode producers = root.get("data").get("producers");
                 for (int i = 0; i < producers.size(); i++) {
                     JsonNode prod = producers.get(i);
@@ -148,7 +149,7 @@ public class Subscriber extends BasePubSub {
     }
 
     public Integer getExecutorQueueSize() {
-        ExecutorService executor = Client.getExecutor();
+        ExecutorService executor = client.getExecutor();
         return executor instanceof ThreadPoolExecutor ? ((ThreadPoolExecutor)executor).getQueue().size() : null;
     }
 

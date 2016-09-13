@@ -9,7 +9,12 @@ class BasePubSub {
 
     protected Config config = new Config();
     protected volatile boolean isStopping = false;
+    protected final Client client;
     private final List<ScheduledFuture> tasks = Collections.synchronizedList(new ArrayList<ScheduledFuture>());
+
+    protected BasePubSub(Client client) {
+        this.client = client;
+    }
 
     public synchronized Config getConfig() {
         return config;
@@ -21,7 +26,7 @@ class BasePubSub {
 
     protected void scheduleAtFixedRate(Runnable runnable, int initialDelay, int period, boolean jitter) {
         if (!isStopping) {
-            tasks.add(Client.scheduleAtFixedRate(runnable, initialDelay, period, jitter));
+            tasks.add(client.scheduleAtFixedRate(runnable, initialDelay, period, jitter));
         }
     }
 

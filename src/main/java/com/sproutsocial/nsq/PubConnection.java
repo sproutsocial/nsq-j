@@ -9,8 +9,8 @@ class PubConnection extends Connection {
 
     private final Publisher publisher;
 
-    public PubConnection(HostAndPort host, Publisher publisher) {
-        super(host);
+    public PubConnection(Client client, HostAndPort host, Publisher publisher) {
+        super(client, host);
         this.publisher = publisher;
     }
 

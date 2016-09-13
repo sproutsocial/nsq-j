@@ -18,31 +18,42 @@ import static com.google.common.base.Preconditions.*;
  */
 public class Client {
 
-    static final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper;
 
-    private static final Set<Publisher> publishers = Collections.newSetFromMap(new ConcurrentHashMap<Publisher, Boolean>());
-    private static final Set<Subscriber> subscribers = Collections.newSetFromMap(new ConcurrentHashMap<Subscriber, Boolean>());
-    private static final Set<SubConnection> subConnections = Collections.newSetFromMap(new ConcurrentHashMap<SubConnection, Boolean>());
-    private static final Object subConMonitor = new Object();
+    private final Set<Publisher> publishers;
+    private final Set<Subscriber> subscribers;
+    private final Set<SubConnection> subConnections;
+    private final Object subConMonitor;
 
-    private static ExecutorService executor;
-    private static final ScheduledExecutorService schedExecutor = Executors.newSingleThreadScheduledExecutor(Util.threadFactory("nsq-sched"));
+    private ExecutorService executor;
+    private final ScheduledExecutorService schedExecutor;
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
+    private static final Client defaultClient = new Client();
 
-    static {
+    public Client() {
+        this.publishers = Collections.newSetFromMap(new ConcurrentHashMap<Publisher, Boolean>());
+        this.subscribers = Collections.newSetFromMap(new ConcurrentHashMap<Subscriber, Boolean>());
+        this.subConnections = Collections.newSetFromMap(new ConcurrentHashMap<SubConnection, Boolean>());
+        this.subConMonitor = new Object();
+        this.schedExecutor = Executors.newSingleThreadScheduledExecutor(Util.threadFactory("nsq-sched"));
+        this.mapper = new ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
         mapper.setPropertyNamingStrategy(PropertyNamingStrategy.CAMEL_CASE_TO_LOWER_CASE_WITH_UNDERSCORES);
     }
 
     //--------------------------
 
+    public static Client getDefaultClient() {
+        return defaultClient;
+    }
+
     /**
      * Stops all subscribers, waits for in-flight messages to be finished or requeued, stops the executor that handles messages,
      * then stops all publishers. All connections will be closed and no threads started by this client should be running when this returns.
      * @param waitMillis Time to wait for everything to stop, in milliseconds. Soft limit that may be exceeded by about 200 ms.
      */
-    public static synchronized boolean stop(int waitMillis) {
+    public synchronized boolean stop(int waitMillis) {
         checkArgument(waitMillis > 0, "waitMillis must be greater than zero");
         logger.info("stopping nsq client");
         boolean isClean = true;
@@ -72,7 +83,7 @@ public class Client {
      * you should call stop() after this to shutdown all threads.
      * @param waitMillis Time to wait for in-flight messages to be finished, in milliseconds.
      */
-    public static synchronized boolean stopSubscribers(int waitMillis) {
+    public synchronized boolean stopSubscribers(int waitMillis) {
         checkArgument(waitMillis > 0, "waitMillis must be greater than zero");
         for (Subscriber subscriber : subscribers) {
             subscriber.stop();
@@ -95,39 +106,44 @@ public class Client {
         return isClean;
     }
 
-    public static synchronized void setExecutor(ExecutorService executor) {
+    public synchronized void setExecutor(ExecutorService executor) {
         checkNotNull(executor);
-        checkState(Client.executor == null, "executor can only be set once, must be set before subscribing");
-        Client.executor = executor;
+        checkState(executor == null, "executor can only be set once, must be set before subscribing");
+        this.executor = executor;
     }
 
-    public static synchronized ExecutorService getExecutor() {
+    public synchronized ExecutorService getExecutor() {
         if (executor == null) {
             executor = Executors.newFixedThreadPool(6, Util.threadFactory("nsq-sub"));
         }
         return executor;
     }
 
+    public final ObjectMapper getObjectMapper() {
+        return mapper;
+    }
+
     //--------------------------
     // package private
 
-    static void addPublisher(Publisher publisher) {
-        publishers.add(publisher);
-    }
-
-    static void addSubscriber(Subscriber subscriber) {
-        subscribers.add(subscriber);
-    }
-
-    static void addSubConnection(SubConnection subCon) {
-        subConnections.add(subCon);
-    }
-
+    // TODO: This just seems like a utility method. Should we move this somewhere else?
     static long clock() {
         return System.nanoTime() / 1000000;
     }
 
-    static ScheduledFuture scheduleAtFixedRate(final Runnable runnable, int initialDelay, int period, boolean jitter) {
+    void addPublisher(Publisher publisher) {
+        publishers.add(publisher);
+    }
+
+    void addSubscriber(Subscriber subscriber) {
+        subscribers.add(subscriber);
+    }
+
+    void addSubConnection(SubConnection subCon) {
+        subConnections.add(subCon);
+    }
+
+    ScheduledFuture scheduleAtFixedRate(final Runnable runnable, int initialDelay, int period, boolean jitter) {
         if (jitter) {
             initialDelay = (int) (initialDelay * 0.1 + Math.random() * initialDelay * 0.9);
         }
@@ -143,7 +159,7 @@ public class Client {
         }, initialDelay, period, TimeUnit.MILLISECONDS);
     }
 
-    static void connectionClosed(SubConnection closedCon) {
+    void connectionClosed(SubConnection closedCon) {
         synchronized (subConMonitor) {
             subConnections.remove(closedCon);
             if (subConnections.isEmpty()) {
