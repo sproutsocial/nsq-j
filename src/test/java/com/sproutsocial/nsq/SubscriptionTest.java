@@ -45,15 +45,23 @@ public class SubscriptionTest {
         Subscription sub = new Subscription(client, "topic", "channel", null, subscriber);
 
         testInFlight(1, 1, sub, 200);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testInFlight(2, 2, sub, 100, 100);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testInFlight(2, 1, sub, 199);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testInFlight(3, 3, sub, 66, 67, 67);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testInFlight(5, 3, sub, 66, 66, 66);
 
         subscriber.setMaxInFlightPerSubscription(2500);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testInFlight(4, 4, sub, 625, 625, 625, 625);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testInFlight(6, 6, sub, 417, 417, 417, 417, 416, 416);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testInFlight(7, 4, sub, 624, 624, 624, 625);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testInFlight(10, 6, sub, 416, 416, 416, 416, 416, 416);
     }
 
@@ -114,7 +122,9 @@ public class SubscriptionTest {
         Subscription sub = new Subscription(client, "topic", "channel", null, subscriber);
 
         testLowFlight(subscriber, sub, 2, 3);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testLowFlight(subscriber, sub, 1, 2);
+        sub = new Subscription(client, "topic", "channel", null, subscriber);
         testLowFlight(subscriber, sub, 5, 10);
     }
 
