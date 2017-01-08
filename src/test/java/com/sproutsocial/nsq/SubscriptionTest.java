@@ -41,27 +41,26 @@ public class SubscriptionTest {
     public void testDistributeInFlight() throws Exception {
         Client client = new Client();
         Subscriber subscriber = new Subscriber(client, 30);
-        subscriber.setMaxInFlightPerSubscription(200);
-        Subscription sub = new Subscription(client, "topic", "channel", null, subscriber);
+        Subscription sub = new Subscription(client, "topic", "channel", null, subscriber, 200);
 
         testInFlight(1, 1, sub, 200);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testInFlight(2, 2, sub, 100, 100);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testInFlight(2, 1, sub, 199);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testInFlight(3, 3, sub, 66, 67, 67);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testInFlight(5, 3, sub, 66, 66, 66);
 
-        subscriber.setMaxInFlightPerSubscription(2500);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        subscriber.setDefaultMaxInFlight(2500);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testInFlight(4, 4, sub, 625, 625, 625, 625);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testInFlight(6, 6, sub, 417, 417, 417, 417, 416, 416);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testInFlight(7, 4, sub, 624, 624, 624, 625);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testInFlight(10, 6, sub, 416, 416, 416, 416, 416, 416);
     }
 
@@ -105,7 +104,7 @@ public class SubscriptionTest {
         Set<SubConnection> activeSet = new HashSet<SubConnection>();
         for (SubConnection con : cons) {
             if (activeSet.size() < numActive) {
-                con.lastActionFlush = Client.clock() - 1000;
+                con.lastActionFlush = Util.clock() - 1000;
                 activeSet.add(con);
             }
             else {
@@ -119,12 +118,12 @@ public class SubscriptionTest {
     public void testLowFlight() throws Exception {
         Client client = new Client();
         Subscriber subscriber = new Subscriber(client, 30);
-        Subscription sub = new Subscription(client, "topic", "channel", null, subscriber);
+        Subscription sub = new Subscription(client, "topic", "channel", null, subscriber, 100);
 
         testLowFlight(subscriber, sub, 2, 3);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testLowFlight(subscriber, sub, 1, 2);
-        sub = new Subscription(client, "topic", "channel", null, subscriber);
+        sub = new Subscription(client, "topic", "channel", null, subscriber, subscriber.getDefaultMaxInFlight());
         testLowFlight(subscriber, sub, 5, 10);
     }
 
@@ -140,7 +139,7 @@ public class SubscriptionTest {
     }
 
     private void testLowFlight(Subscriber subscriber, Subscription sub, int maxInflight, int numCons) throws Exception {
-        subscriber.setMaxInFlightPerSubscription(maxInflight);
+        sub.setMaxInFlight(maxInflight);
         checkHosts(sub, numCons);
         assertTrue(sub.isLowFlight());
         Map<HostAndPort, SubConnection> conMap = Whitebox.getInternalState(sub, "connectionMap");

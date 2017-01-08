@@ -4,18 +4,19 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.google.common.util.concurrent.MoreExecutors;
+import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.net.ssl.SSLSocketFactory;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.*;
 
 import static com.google.common.base.Preconditions.*;
 
-/**
- * Thread safe
- */
+@ThreadSafe
 public class Client {
 
     private final ObjectMapper mapper;
@@ -27,16 +28,18 @@ public class Client {
 
     private ExecutorService executor;
     private final ScheduledExecutorService schedExecutor;
+    private SSLSocketFactory sslSocketFactory;
+    private byte[] authSecret;
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     private static final Client defaultClient = new Client();
 
     public Client() {
-        this.publishers = Collections.newSetFromMap(new ConcurrentHashMap<Publisher, Boolean>());
-        this.subscribers = Collections.newSetFromMap(new ConcurrentHashMap<Subscriber, Boolean>());
-        this.subConnections = Collections.newSetFromMap(new ConcurrentHashMap<SubConnection, Boolean>());
+        this.publishers = Collections.synchronizedSet(new HashSet<Publisher>());
+        this.subscribers = Collections.synchronizedSet(new HashSet<Subscriber>());
+        this.subConnections = Collections.synchronizedSet(new HashSet<SubConnection>());
         this.subConMonitor = new Object();
-        this.schedExecutor = Executors.newSingleThreadScheduledExecutor(Util.threadFactory("nsq-sched"));
+        this.schedExecutor = Executors.newScheduledThreadPool(2, Util.threadFactory("nsq-sched"));
         this.mapper = new ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
         mapper.setPropertyNamingStrategy(PropertyNamingStrategy.CAMEL_CASE_TO_LOWER_CASE_WITH_UNDERSCORES);
@@ -57,11 +60,11 @@ public class Client {
         checkArgument(waitMillis > 0, "waitMillis must be greater than zero");
         logger.info("stopping nsq client");
         boolean isClean = true;
-        long start = clock();
+        long start = Util.clock();
         isClean &= stopSubscribers(waitMillis);
 
         if (executor != null && !executor.isTerminated()) {
-            int timeout = Math.max((int) (waitMillis - (clock() - start)), 100);
+            int timeout = Math.max((int) (waitMillis - (Util.clock() - start)), 100);
             isClean &= MoreExecutors.shutdownAndAwaitTermination(executor, timeout, TimeUnit.MILLISECONDS);
         }
 
@@ -69,7 +72,7 @@ public class Client {
             publisher.stop();
         }
 
-        int timeout = Math.max((int) (waitMillis - (clock() - start)), 100);
+        int timeout = Math.max((int) (waitMillis - (Util.clock() - start)), 100);
         isClean &= MoreExecutors.shutdownAndAwaitTermination(schedExecutor, timeout, TimeUnit.MILLISECONDS);
 
         logger.debug("executor.isTerminated:{} schedExecutor.isTerminated:{} isClean:{}", executor != null ? executor.isTerminated() : "null", schedExecutor.isTerminated(), isClean);
@@ -119,17 +122,32 @@ public class Client {
         return executor;
     }
 
+    public synchronized SSLSocketFactory getSSLSocketFactory() {
+        return sslSocketFactory;
+    }
+
+    public synchronized void setSSLSocketFactory(SSLSocketFactory sslSocketFactory) {
+        this.sslSocketFactory = sslSocketFactory;
+    }
+
+    public synchronized byte[] getAuthSecret() {
+        return authSecret;
+    }
+
+    public synchronized void setAuthSecret(byte[] authSecret) {
+        this.authSecret = authSecret;
+    }
+
+    public synchronized void setAuthSecret(String authSecret) {
+        this.authSecret = authSecret.getBytes();
+    }
+
     public final ObjectMapper getObjectMapper() {
         return mapper;
     }
 
     //--------------------------
     // package private
-
-    // TODO: This just seems like a utility method. Should we move this somewhere else?
-    static long clock() {
-        return System.nanoTime() / 1000000;
-    }
 
     void addPublisher(Publisher publisher) {
         publishers.add(publisher);
@@ -141,6 +159,10 @@ public class Client {
 
     void addSubConnection(SubConnection subCon) {
         subConnections.add(subCon);
+    }
+
+    ScheduledExecutorService getSchedExecutor() {
+        return schedExecutor;
     }
 
     ScheduledFuture scheduleAtFixedRate(final Runnable runnable, int initialDelay, int period, boolean jitter) {
@@ -157,6 +179,19 @@ public class Client {
                 }
             }
         }, initialDelay, period, TimeUnit.MILLISECONDS);
+    }
+
+    void schedule(final Runnable runnable, int delay) {
+        schedExecutor.schedule(new Runnable() {
+            public void run() {
+                try {
+                    runnable.run();
+                }
+                catch (Throwable t) {
+                    logger.error("task error", t);
+                }
+            }
+        }, delay, TimeUnit.MILLISECONDS);
     }
 
     void connectionClosed(SubConnection closedCon) {

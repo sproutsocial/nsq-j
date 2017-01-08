@@ -1,18 +1,19 @@
 package com.sproutsocial.nsq;
 
 import com.google.common.net.HostAndPort;
+import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Thread safe
- */
+@ThreadSafe
 public class Publisher extends BasePubSub {
 
     private final HostAndPort nsqd;
@@ -21,6 +22,10 @@ public class Publisher extends BasePubSub {
     private boolean isFailover = false;
     private long failoverStart;
     private int failoverDurationSecs = 300;
+    private final Map<String, Batcher> batchers = new HashMap<String, Batcher>();
+
+    private static final int DEFAULT_MAX_BATCH_SIZE = 16 * 1024;
+    private static final int DEFUALT_MAX_BATCH_DELAY = 300;
 
     private static final Logger logger = LoggerFactory.getLogger(Publisher.class);
 
@@ -46,7 +51,7 @@ public class Publisher extends BasePubSub {
             }
             connect(nsqd);
         }
-        else if (isFailover && client.clock() - failoverStart > failoverDurationSecs * 1000) {
+        else if (isFailover && Util.clock() - failoverStart > failoverDurationSecs * 1000) {
             connect(nsqd);
             isFailover = false;
             logger.info("using primary nsqd");
@@ -107,7 +112,7 @@ public class Publisher extends BasePubSub {
                 connect(nsqd);
             }
             else if (!isFailover) {
-                failoverStart = client.clock();
+                failoverStart = Util.clock();
                 isFailover = true;
                 connect(failoverNsqd);
                 logger.info("using failover nsqd:{}", failoverNsqd);
@@ -121,8 +126,32 @@ public class Publisher extends BasePubSub {
         }
     }
 
+    public synchronized void publishBuffered(String topic, byte[] data) {
+        checkNotNull(topic);
+        checkNotNull(data);
+        checkArgument(data.length > 0);
+        Batcher batcher = batchers.get(topic);
+        if (batcher == null) {
+            batcher = new Batcher(this, topic, DEFAULT_MAX_BATCH_SIZE, DEFUALT_MAX_BATCH_DELAY);
+            batchers.put(topic, batcher);
+        }
+        batcher.publish(data);
+    }
+
+    public synchronized void setBatchConfig(String topic, int maxSizeBytes, int maxDelayMillis) {
+        Batcher batcher = batchers.get(topic);
+        if (batcher != null) {
+            batcher.sendBatch();
+        }
+        batcher = new Batcher(this, topic, maxSizeBytes, maxDelayMillis);
+        batchers.put(topic, batcher);
+    }
+
     @Override
     public synchronized void stop() {
+        for (Batcher batcher : batchers.values()) {
+            batcher.sendBatch();
+        }
         super.stop();
         Util.closeQuietly(con);
         con = null;

@@ -1,9 +1,21 @@
 package com.sproutsocial.nsq;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+
+//TODO Delete me
 
 public class MiscMain {
 
@@ -47,7 +59,7 @@ public class MiscMain {
         //config.setDeflateLevel(6);
         config.setSnappy(true);
         Subscriber subscriber = new Subscriber(30, "localhost");
-        subscriber.setMaxInFlightPerSubscription(10);
+        subscriber.setDefaultMaxInFlight(10);
         System.out.println("created subscriber");
 
         subscriber.subscribe("cli3", "cli_test", new MessageHandler() {
@@ -61,16 +73,23 @@ public class MiscMain {
         subscriber.stop();
     }
 
-    public static void testSub() {
+    public static void testSub() throws Exception {
         Config config = new Config();
         Client client = new Client();
         //config.setDeflate(true);
         //config.setDeflateLevel(6);
         //config.setSnappy(true);
         config.setMsgTimeout(25000);
+
+        config.setTlsV1(true);
+        client.setAuthSecret("test_local");
+        client.setSSLSocketFactory(socketFactory());
+
+        /*
         //DirectSubscriber subscriber = new DirectSubscriber(30, "localhost");
         Subscriber subscriber = new Subscriber(client, 30, "localhost");
-        subscriber.setMaxInFlightPerSubscription(2);
+        subscriber.setConfig(config);
+        subscriber.setDefaultMaxInFlight(2);
         System.out.println("created subscriber");
 
         subscriber.subscribe("test1", "chan1", new MessageHandler() {
@@ -79,10 +98,15 @@ public class MiscMain {
             }
         });
         System.out.println("subscribed");
+        */
 
         Util.sleepQuietly(1000);
         Publisher publisher = new Publisher(client, "localhost", null);
-        publisher.publish("test1", "from java".getBytes());
+        publisher.setConfig(config);
+
+        System.out.println("publishing");
+        publisher.publish("test2", "from java".getBytes());
+        System.out.println("published");
         //Util.sleepQuietly(30000);
         //subscriber.setMaxInFlightPerSubscription(1);
 
@@ -90,6 +114,18 @@ public class MiscMain {
         System.out.println("calling Client.stop");
         client.stop(30000);
         System.out.println("Client.stop done");
+    }
+
+    private static SSLSocketFactory socketFactory() throws Exception {
+        KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        InputStream in = new BufferedInputStream(new FileInputStream("/home/rob/workcode/infra-mine/nsq-j/src/test/resources/java_keystore.jks"));
+        keyStore.load(in, "password".toCharArray());
+
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(keyStore);
+        SSLContext ctx = SSLContext.getInstance("TLS");
+        ctx.init(null, tmf.getTrustManagers(), null);
+        return ctx.getSocketFactory();
     }
 
     public static void handleLoad(Message msg) {
@@ -107,7 +143,7 @@ public class MiscMain {
     public static void testLoad() {
         Config config = new Config();
         Subscriber subscriber = new Subscriber(30, "localhost");
-        subscriber.setMaxInFlightPerSubscription(500);
+        subscriber.setDefaultMaxInFlight(500);
         System.out.println("created subscriber");
 
         loadPublisher = new Publisher("localhost", "localhost:5150");
@@ -127,9 +163,11 @@ public class MiscMain {
             //nohup nsqd -lookupd-tcp-address=localhost:4160 -broadcast-address=192.168.1.101 > log-nsqd 2>&1 &
             //curl -d 'message 1' 'http://localhost:4151/put?topic=cli'
 
+            testSub();
+
             //testPub();
 
-            testLoad();
+            //testLoad();
 
             Util.sleepQuietly(3000000);
 

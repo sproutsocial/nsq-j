@@ -3,6 +3,7 @@ package com.sproutsocial.nsq;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
+import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,18 +18,18 @@ import java.util.concurrent.ThreadPoolExecutor;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-/**
- * Thread safe
- */
+@ThreadSafe
 public class Subscriber extends BasePubSub {
 
     private final List<HostAndPort> lookups = Lists.newArrayList();
     private final List<Subscription> subscriptions = Lists.newArrayList();
     private final int lookupIntervalSecs;
-    private int maxInFlightPerSubscription = 200;
+    private int defaultMaxInFlight = 200;
     private int maxFlushDelayMillis = 2000;
     private int maxAttempts = Integer.MAX_VALUE;
     private FailedMessageHandler failedMessageHandler = null;
+
+    private static final int DEFAULT_LOOKUP_INTERVAL_SECS = 60;
 
     private static final Logger logger = LoggerFactory.getLogger(Subscriber.class);
 
@@ -50,19 +51,38 @@ public class Subscriber extends BasePubSub {
         this(Client.getDefaultClient(), lookupIntervalSecs, lookupHosts);
     }
 
+    public Subscriber(String... lookupHosts) {
+        this(Client.getDefaultClient(), DEFAULT_LOOKUP_INTERVAL_SECS, lookupHosts);
+    }
+
+    public synchronized void subscribe(String topic, String channel, MessageHandler handler) {
+        subscribe(topic, channel, defaultMaxInFlight, handler);
+    }
+
     /**
      * Subscribe to a topic.
      * If the configured executor is multi-threaded (by default it uses 6 threads)
      * then the MessageHandler must be thread safe.
      */
-    public synchronized void subscribe(String topic, String channel, MessageHandler handler) {
+    public synchronized void subscribe(String topic, String channel, int maxInFlight, MessageHandler handler) {
         checkNotNull(topic);
         checkNotNull(channel);
         checkNotNull(handler);
         client.addSubscriber(this);
-        Subscription sub = new Subscription(client, topic, channel, handler, this);
+        Subscription sub = new Subscription(client, topic, channel, handler, this, maxInFlight);
+        if (handler instanceof BackoffHandler) {
+            ((BackoffHandler)handler).setSubscription(sub); //awkward
+        }
         subscriptions.add(sub);
         sub.checkConnections(lookupTopic(topic));
+    }
+
+    public synchronized void setMaxInFlight(String topic, String channel, int maxInFlight) {
+        for (Subscription sub : subscriptions) {
+            if (sub.getTopic().equals(topic) && sub.getChannel().equals(channel)) {
+                sub.setMaxInFlight(maxInFlight);
+            }
+        }
     }
 
     private synchronized void lookup() {
@@ -109,15 +129,15 @@ public class Subscriber extends BasePubSub {
         logger.info("subscriber stopped");
     }
 
-    public synchronized int getMaxInFlightPerSubscription() {
-        return maxInFlightPerSubscription;
+    public synchronized int getDefaultMaxInFlight() {
+        return defaultMaxInFlight;
     }
 
-    public synchronized void setMaxInFlightPerSubscription(int maxInFlightPerSubscription) {
-        this.maxInFlightPerSubscription = maxInFlightPerSubscription;
-        for (Subscription subscription : subscriptions) {
-            subscription.distributeMaxInFlight();
-        }
+    /**
+     * the maxInFlight to use for new subscriptions
+     */
+    public synchronized void setDefaultMaxInFlight(int defaultMaxInFlight) {
+        this.defaultMaxInFlight = defaultMaxInFlight;
     }
 
     public synchronized int getMaxFlushDelayMillis() {

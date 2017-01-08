@@ -25,6 +25,10 @@ class Util {
                 .build();
     }
 
+    public static long clock() {
+        return System.nanoTime() / 1000000;
+    }
+
     public static void closeQuietly(Closeable closeable) {
         try {
             if (closeable != null) {

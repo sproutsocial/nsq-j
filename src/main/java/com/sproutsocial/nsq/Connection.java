@@ -3,12 +3,11 @@ package com.sproutsocial.nsq;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.net.HostAndPort;
-import com.google.common.util.concurrent.MoreExecutors;
+import net.jcip.annotations.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xerial.snappy.SnappyFramedInputStream;
-import org.xerial.snappy.SnappyFramedOutputStream;
 
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
@@ -43,7 +42,7 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     private static final ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
     private static final Set<String> nonFatalErrors = ImmutableSet.of("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED");
-    private static final String USER_AGENT = "nsq-j/0.1";
+    private static final String USER_AGENT = "nsq-j/0.2";
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
@@ -55,19 +54,15 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     public synchronized void connect(Config config) throws IOException {
         addClientConfig(config);
-        Socket sock = new Socket(host.getHostText(), host.getPort());
-        BufferedInputStream bufIn = new BufferedInputStream(sock.getInputStream());
-        in = new DataInputStream(bufIn);
+        Socket sock = new Socket(host.getHost(), host.getPort());
+        in = new DataInputStream(new BufferedInputStream(sock.getInputStream()));
         out = new DataOutputStream(new BufferedOutputStream(sock.getOutputStream()));
-        out.write("  V2".getBytes());
+        out.write("  V2".getBytes(Charsets.US_ASCII));
 
-        out.write("IDENTIFY\n".getBytes());
-        write(client.getObjectMapper().writeValueAsBytes(config));
-        out.flush();
-        String response = readResponse();
+        String response = connectCommand("IDENTIFY", client.getObjectMapper().writeValueAsBytes(config));
 
         ServerConfig serverConfig = client.getObjectMapper().readValue(response, ServerConfig.class);
-        //logger.debug("serverConfig:{}", Client.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
+        logger.debug("serverConfig:{}", client.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
         setConfig(serverConfig);
         msgTimeout = firstNonNull(serverConfig.getMsgTimeout(), 60000);
         heartbeatInterval = firstNonNull(serverConfig.getHeartbeatInterval(), 30000);
@@ -76,20 +71,40 @@ abstract class Connection extends BasePubSub implements Closeable {
 
         sock.setSoTimeout(heartbeatInterval + 5000);
 
-        wrapCompression(serverConfig, bufIn, sock);
+        wrapEncryption(serverConfig, sock);
+        wrapCompression(serverConfig, sock);
+
+        if (serverConfig.getAuthRequired() != null && serverConfig.getAuthRequired()) {
+            if (client.getAuthSecret() == null) {
+                throw new NSQException("nsqd requires authorization, call client.setAuthSecret before connecting");
+            }
+            if (!serverConfig.getTlsV1()) {
+                logger.warn("authorization used without encryption. authSecret sent in plain text");
+            }
+            String authResponse = connectCommand("AUTH", client.getAuthSecret());
+            logger.info("authorization response:{}", authResponse);
+            //no need to check response, future PUB/SUB may fail with E_UNAUTHORIZED
+        }
 
         scheduleAtFixedRate(new Runnable() {
             public void run() {
                 checkHeartbeat();
             }
         }, heartbeatInterval + 2000, heartbeatInterval, false);
-        lastHeartbeat = Client.clock();
+        lastHeartbeat = Util.clock();
 
         readThreadFactory.newThread(new Runnable() {
             public void run() {
                 read();
             }
         }).start();
+    }
+
+    private String connectCommand(String command, byte[] data) throws IOException {
+        out.write((command + "\n").getBytes(Charsets.US_ASCII));
+        write(data);
+        out.flush();
+        return readResponse();
     }
 
     private void addClientConfig(Config config) {
@@ -104,10 +119,25 @@ abstract class Connection extends BasePubSub implements Closeable {
         config.setFeatureNegotiation(true);
     }
 
-    private void wrapCompression(ServerConfig serverConfig, BufferedInputStream bufIn, Socket sock) throws IOException {
+    private void wrapEncryption(ServerConfig serverConfig, Socket sock) throws IOException {
+        if (!serverConfig.getTlsV1()) {
+            return;
+        }
+        logger.debug("adding tls");
+        SSLSocketFactory sockFactory = client.getSSLSocketFactory();
+        if (sockFactory == null) {
+            sockFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+        }
+        sock = sockFactory.createSocket(sock, sock.getInetAddress().getHostAddress(), sock.getPort(), true);
+        in = new DataInputStream(new BufferedInputStream(sock.getInputStream()));
+        out = new DataOutputStream(new BufferedOutputStream(sock.getOutputStream()));
+        readResponse();
+    }
+
+    private void wrapCompression(ServerConfig serverConfig, Socket sock) throws IOException {
         if (serverConfig.getDeflate()) {
             logger.debug("adding deflate compression");
-            in = new DataInputStream(new InflaterInputStream(bufIn,
+            in = new DataInputStream(new InflaterInputStream(new BufferedInputStream(sock.getInputStream()),
                     new Inflater(true), 32768));
             //TODO select compression level
             Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true);
@@ -125,43 +155,51 @@ abstract class Connection extends BasePubSub implements Closeable {
             readResponse();
         }
         else if (serverConfig.getSnappy()) {
-            logger.debug("adding snappy compression");
-            in = new DataInputStream(new SnappyFramedInputStream(bufIn));
-            out = new DataOutputStream(new SnappyFramedOutputStream(sock.getOutputStream()));
-            readResponse();
+            logger.info("snappy compression not yet implemented");
+            //logger.debug("adding snappy compression");
+            //in = new DataInputStream(new SnappyFramedInputStream(sock.getInputStream()));
+            //out = new DataOutputStream(new SnappyFramedOutputStream(sock.getOutputStream()));
+            //readResponse();
         }
     }
 
-    private synchronized void checkHeartbeat() {
+    private void checkHeartbeat() {
         try {
-            //logger.debug("checkHeartbeat {}", toString());
-            long now = Client.clock();
-            if (now - lastHeartbeat > 2 * heartbeatInterval) {
+            boolean isDead = true;
+            long now = Util.clock();
+            synchronized (this) {
+                isDead = now - lastHeartbeat > 2 * heartbeatInterval;
+            }
+            if (isDead) {
                 logger.info("heartbeat failed, closing connection:{}", toString());
                 close();
             }
         }
         catch (Exception e) {
-            logger.error("problem checking heartbeat, will probably time out soon. con:{}", toString(), e);
+            logger.error("problem checking heartbeat, will probably time out soon. {}", toString(), e);
         }
     }
 
+    @GuardedBy("this")
     protected void writeCommand(String cmd, Object param1, Object param2) throws IOException {
         out.write(String.format("%s %s %s\n", cmd, param1, param2).getBytes(Charsets.US_ASCII));
     }
 
+    @GuardedBy("this")
     protected void writeCommand(String cmd, Object param) throws IOException {
         out.write(String.format("%s %s\n", cmd, param).getBytes(Charsets.US_ASCII));
     }
 
+    @GuardedBy("this")
     protected void write(byte[] data) throws IOException {
         out.writeInt(data.length);
         out.write(data);
     }
 
+    @GuardedBy("this")
     protected void flush() throws IOException {
         out.flush();
-        lastActionFlush = Client.clock();
+        lastActionFlush = Util.clock();
         unflushedCount = 0;
     }
 
@@ -211,6 +249,7 @@ abstract class Connection extends BasePubSub implements Closeable {
         }
         catch (Exception e) {
             if (isReading) {
+                respQueue.offer(e.toString());
                 close();
                 logger.error("read thread exception. con:{}", toString(), e);
             }
@@ -220,7 +259,7 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     private synchronized void receivedHeartbeat() {
         try {
-            lastHeartbeat = Client.clock();
+            lastHeartbeat = Util.clock();
             out.write("NOP\n".getBytes(Charsets.US_ASCII));
             out.flush(); //NOP does not update lastActionFlush
         }
@@ -230,7 +269,7 @@ abstract class Connection extends BasePubSub implements Closeable {
     }
 
     protected void onMessage(long timestamp, int attempts, String id, byte[] data) {
-        throw new NSQException("unexpected frame type 2 - message");
+        throw new NSQException("unexpected frame type 2 - message"); //overridden by SubConnection
     }
 
     private byte[] readBytes(int size) throws IOException {
@@ -279,10 +318,9 @@ abstract class Connection extends BasePubSub implements Closeable {
         return host;
     }
 
-    @Override
-    public synchronized String toString() {
-        long now = Client.clock();
-        return String.format("%s lastFlush:%.1f lastHeartbeat:%.1f unflushedCount:%d", host.getHostText(),
+    public synchronized String stateDesc() {
+        long now = Util.clock();
+        return String.format("%s lastFlush:%.1f lastHeartbeat:%.1f unflushedCount:%d", toString(),
                 (now - lastActionFlush) / 1000f, (now - lastHeartbeat) / 1000f, unflushedCount);
     }
 

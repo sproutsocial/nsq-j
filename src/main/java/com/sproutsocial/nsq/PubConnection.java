@@ -51,7 +51,7 @@ class PubConnection extends Connection {
 
     @Override
     public String toString() {
-        return super.toString() + " pub";
+        return String.format("PubCon:%s", host.getHost());
     }
 
 }

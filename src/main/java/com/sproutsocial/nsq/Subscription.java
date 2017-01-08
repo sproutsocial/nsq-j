@@ -1,18 +1,12 @@
 package com.sproutsocial.nsq;
 
 import com.google.common.collect.Lists;
-import com.google.common.eventbus.AllowConcurrentEvents;
-import com.google.common.eventbus.Subscribe;
 import com.google.common.net.HostAndPort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
 import java.util.concurrent.ScheduledFuture;
 
 class Subscription extends BasePubSub {
@@ -21,24 +15,35 @@ class Subscription extends BasePubSub {
     private final String channel;
     private final MessageHandler handler;
     private final Subscriber subscriber;
-    private final Map<HostAndPort, SubConnection> connectionMap = new ConcurrentHashMap<HostAndPort, SubConnection>();
+    private final Map<HostAndPort, SubConnection> connectionMap = Collections.synchronizedMap(new HashMap<HostAndPort, SubConnection>());
+    private int maxInFlight;
     private ScheduledFuture lowFlightRotateTask;
 
     private static final Logger logger = LoggerFactory.getLogger(Subscription.class);
 
-    public Subscription(Client client, String topic, String channel, MessageHandler handler, Subscriber subscriber) {
+    public Subscription(Client client, String topic, String channel, MessageHandler handler, Subscriber subscriber, int maxInFlight) {
         super(client);
         this.topic = topic;
         this.channel = channel;
         this.handler = handler;
         this.subscriber = subscriber;
+        this.maxInFlight = maxInFlight;
+    }
+
+    public synchronized int getMaxInFlight() {
+        return maxInFlight;
+    }
+
+    public synchronized void setMaxInFlight(int maxInFlight) {
+        this.maxInFlight = maxInFlight;
+        distributeMaxInFlight();
     }
 
     public synchronized void checkConnections(Set<HostAndPort> activeHosts) {
         for (Iterator<SubConnection> iter = connectionMap.values().iterator(); iter.hasNext();) {
             SubConnection con  = iter.next();
             if (!activeHosts.contains(con.getHost())) {
-                if (client.clock() - con.getLastActionFlush() > con.getMsgTimeout() * 100) {
+                if (Util.clock() - con.getLastActionFlush() > con.getMsgTimeout() * 100) {
                     logger.info("closing inactive connection:{} topic:{}", con.getHost(), topic);
                     iter.remove();
                     con.close();
@@ -61,13 +66,13 @@ class Subscription extends BasePubSub {
         distributeMaxInFlight();
     }
 
-    public void distributeMaxInFlight() {
+    private void distributeMaxInFlight() {
         if (checkLowFlight() || connectionMap.isEmpty()) {
             return;
         }
         List<SubConnection> activeCons = Lists.newArrayList();
         List<SubConnection> inactiveCons = Lists.newArrayList();
-        long minActiveTime = client.clock() - subscriber.getLookupIntervalSecs() * 1000 * 30;
+        long minActiveTime = Util.clock() - subscriber.getLookupIntervalSecs() * 1000 * 30;
         for (SubConnection con : connectionMap.values()) {
             if (con.lastActionFlush < minActiveTime) {
                 inactiveCons.add(con);
@@ -83,7 +88,7 @@ class Subscription extends BasePubSub {
         for (SubConnection con : inactiveCons) {
             con.setMaxInFlight(1, false);
         }
-        int f = subscriber.getMaxInFlightPerSubscription() - inactiveCons.size();
+        int f = maxInFlight - inactiveCons.size();
         int perCon = f / activeCons.size();
         int extra = f % activeCons.size();
         for (SubConnection con : activeCons) {
@@ -97,7 +102,7 @@ class Subscription extends BasePubSub {
     }
 
     private boolean checkLowFlight() {
-        if (subscriber.getMaxInFlightPerSubscription() < connectionMap.size()) {
+        if (maxInFlight < connectionMap.size()) {
             if (lowFlightRotateTask == null) {
                 lowFlightRotateTask = client.scheduleAtFixedRate(new Runnable() {
                     public void run() {
@@ -106,10 +111,10 @@ class Subscription extends BasePubSub {
                 }, 10000, 10000, false);
             }
             List<SubConnection> cons = Lists.newArrayList(connectionMap.values());
-            for (SubConnection con : cons.subList(0, subscriber.getMaxInFlightPerSubscription())) {
+            for (SubConnection con : cons.subList(0, maxInFlight)) {
                 con.setMaxInFlight(1);
             }
-            for (SubConnection con : cons.subList(subscriber.getMaxInFlightPerSubscription(), cons.size())) {
+            for (SubConnection con : cons.subList(maxInFlight, cons.size())) {
                 con.setMaxInFlight(0);
             }
             return true;
@@ -176,11 +181,11 @@ class Subscription extends BasePubSub {
     }
 
     @Override
-    public synchronized String toString() {
-        return topic + "." + channel + " connectionss:" + connectionMap.size();
+    public String toString() {
+        return String.format("subscription %s.%s connections:%s", topic, channel, connectionMap.size());
     }
 
-    public synchronized int getConnectionCount() {
+    public int getConnectionCount() {
         return connectionMap.size();
     }
 

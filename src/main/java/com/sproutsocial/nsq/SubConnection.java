@@ -16,7 +16,7 @@ class SubConnection extends Connection {
     private final int maxAttemps;
     private final int maxFlushDelayMillis;
     private int inFlight = 0;
-    private int maxInFlight = 1;
+    private int maxInFlight = 0;
     private int maxUnflushed = 0;
 
     private long finishedCount = 0;
@@ -48,7 +48,7 @@ class SubConnection extends Connection {
             messageDone();
         }
         catch (IOException e) {
-            logger.error("finish error. con:{}", toString(), e);
+            logger.error("finish error. {}", stateDesc(), e);
             close();
         }
     }
@@ -60,7 +60,7 @@ class SubConnection extends Connection {
             messageDone();
         }
         catch (IOException e) {
-            logger.error("requeue error. con:{}", toString(), e);
+            logger.error("requeue error. {}", stateDesc(), e);
             close();
         }
     }
@@ -81,19 +81,19 @@ class SubConnection extends Connection {
             checkFlush();
         }
         catch (IOException e) {
-            logger.error("touch error. con:{}", toString(), e);
+            logger.error("touch error. {}", stateDesc(), e);
             close();
         }
     }
 
     private synchronized void delayedFlush() {
         try {
-            if (unflushedCount > 0 && Client.clock() - lastActionFlush > (maxFlushDelayMillis / 2) + 10) {
+            if (unflushedCount > 0 && Util.clock() - lastActionFlush > (maxFlushDelayMillis / 2) + 10) {
                 flush();
             }
         }
         catch (Exception e) {
-            logger.error("delayedFlush error. con:{}", toString(), e);
+            logger.error("delayedFlush error. {}", stateDesc(), e);
             close();
         }
     }
@@ -128,7 +128,7 @@ class SubConnection extends Connection {
             }
         }
         catch (IOException e) {
-            logger.error("setMaxInFlight failed. con:{}", toString(), e);
+            logger.error("setMaxInFlight failed. con:{}", stateDesc(), e);
             close();
         }
     }
@@ -208,13 +208,14 @@ class SubConnection extends Connection {
     }
 
     @Override
-    public synchronized String toString() {
-        return super.toString() + String.format(" sub %s inFlight:%d maxInFlight:%d fin:%d req:%d",
-                getTopicChannelString(), inFlight, maxInFlight, finishedCount, requeuedCount);
+    public String toString() {
+        return String.format("SubCon:%s %s.%s", host.getHost(), subscription.getTopic(), subscription.getChannel());
     }
 
-    public synchronized String getTopicChannelString() {
-        return subscription.getTopic() + "." + subscription.getChannel();
+    @Override
+    public synchronized String stateDesc() {
+        return String.format("%s inFlight:%d maxInFlight:%d fin:%d req:%d",
+                super.stateDesc(), inFlight, maxInFlight, finishedCount, requeuedCount);
     }
 
 }

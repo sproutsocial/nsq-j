@@ -1,5 +1,7 @@
 package com.sproutsocial.nsq;
 
+import org.junit.BeforeClass;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,9 +12,15 @@ import java.util.Random;
 
 public class TestBase {
 
-    //public static long seed = System.currentTimeMillis();
-    public static long seed = 1447451719500L;
+    public static long seed = System.currentTimeMillis();
+    //public static long seed = 1447451719500L;
     public static Random random = new Random(seed);
+
+    @BeforeClass
+    public static void beforeTests() throws Exception {
+        System.out.println("initial random seed " + seed);
+        exec("src/test/script/start_tests.sh");
+    }
 
     public static List<String> messages(int count, int maxLen) {
         List<String> res = new ArrayList<String>(count);
