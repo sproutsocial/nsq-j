@@ -40,10 +40,12 @@ class BasePubSub {
     }
 
     protected void cancelTasks() {
-        for (ScheduledFuture task : tasks) {
-            task.cancel(false);
+        synchronized (tasks) {
+            for (ScheduledFuture task : tasks) {
+                task.cancel(false);
+            }
+            tasks.clear();
         }
-        tasks.clear();
     }
 
 }

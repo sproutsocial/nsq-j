@@ -61,7 +61,7 @@ public class Subscriber extends BasePubSub {
 
     /**
      * Subscribe to a topic.
-     * If the configured executor is multi-threaded (by default it uses 6 threads)
+     * If the configured executor is multi-threaded and maxInFlight > 1 (the defaults)
      * then the MessageHandler must be thread safe.
      */
     public synchronized void subscribe(String topic, String channel, int maxInFlight, MessageHandler handler) {
