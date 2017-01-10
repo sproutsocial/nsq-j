@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ScheduledFuture;
 
+import static com.sproutsocial.nsq.Util.copy;
+
 class Subscription extends BasePubSub {
 
     private final String topic;
@@ -40,13 +42,15 @@ class Subscription extends BasePubSub {
     }
 
     public synchronized void checkConnections(Set<HostAndPort> activeHosts) {
-        for (Iterator<SubConnection> iter = connectionMap.values().iterator(); iter.hasNext();) {
-            SubConnection con  = iter.next();
-            if (!activeHosts.contains(con.getHost())) {
-                if (Util.clock() - con.getLastActionFlush() > con.getMsgTimeout() * 100) {
-                    logger.info("closing inactive connection:{} topic:{}", con.getHost(), topic);
-                    iter.remove();
-                    con.close();
+        synchronized (connectionMap) {
+            for (Iterator<SubConnection> iter = connectionMap.values().iterator(); iter.hasNext(); ) {
+                SubConnection con = iter.next();
+                if (!activeHosts.contains(con.getHost())) {
+                    if (Util.clock() - con.getLastActionFlush() > con.getMsgTimeout() * 100) {
+                        logger.info("closing inactive connection:{} topic:{}", con.getHost(), topic);
+                        iter.remove();
+                        con.close();
+                    }
                 }
             }
         }
@@ -73,7 +77,7 @@ class Subscription extends BasePubSub {
         List<SubConnection> activeCons = Lists.newArrayList();
         List<SubConnection> inactiveCons = Lists.newArrayList();
         long minActiveTime = Util.clock() - subscriber.getLookupIntervalSecs() * 1000 * 30;
-        for (SubConnection con : connectionMap.values()) {
+        for (SubConnection con : copy(connectionMap.values())) {
             if (con.lastActionFlush < minActiveTime) {
                 inactiveCons.add(con);
             }
@@ -110,7 +114,7 @@ class Subscription extends BasePubSub {
                     }
                 }, 10000, 10000, false);
             }
-            List<SubConnection> cons = Lists.newArrayList(connectionMap.values());
+            List<SubConnection> cons = copy(connectionMap.values());
             for (SubConnection con : cons.subList(0, maxInFlight)) {
                 con.setMaxInFlight(1);
             }
@@ -127,7 +131,7 @@ class Subscription extends BasePubSub {
     private synchronized void rotateLowFlight() {
         SubConnection paused = null;
         SubConnection ready = null;
-        for (SubConnection con : connectionMap.values()) {
+        for (SubConnection con : copy(connectionMap.values())) {
             if (con.getMaxInFlight() == 0 && (paused == null || con.getLastActionFlush() < paused.getLastActionFlush())) {
                 paused = con;
             }
@@ -148,7 +152,7 @@ class Subscription extends BasePubSub {
             Util.cancel(lowFlightRotateTask);
             lowFlightRotateTask = null;
         }
-        for (SubConnection con : connectionMap.values()) {
+        for (SubConnection con : copy(connectionMap.values())) {
             con.stop();
         }
     }

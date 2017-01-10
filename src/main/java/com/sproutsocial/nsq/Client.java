@@ -9,8 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLSocketFactory;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.*;
 
@@ -19,15 +17,14 @@ import static com.google.common.base.Preconditions.*;
 @ThreadSafe
 public class Client {
 
-    private final ObjectMapper mapper;
-
-    private final Set<Publisher> publishers;
-    private final Set<Subscriber> subscribers;
-    private final Set<SubConnection> subConnections;
-    private final Object subConMonitor;
+    private final Set<Publisher> publishers = new CopyOnWriteArraySet<Publisher>();
+    private final Set<Subscriber> subscribers = new CopyOnWriteArraySet<Subscriber>();
+    private final Set<SubConnection> subConnections = new CopyOnWriteArraySet<SubConnection>();
+    private final ObjectMapper mapper = new ObjectMapper();
+    private final Object subConMonitor = new Object();
+    private final ScheduledExecutorService schedExecutor = Executors.newScheduledThreadPool(2, Util.threadFactory("nsq-sched"));;
 
     private ExecutorService executor;
-    private final ScheduledExecutorService schedExecutor;
     private SSLSocketFactory sslSocketFactory;
     private byte[] authSecret;
 
@@ -35,14 +32,8 @@ public class Client {
     private static final Client defaultClient = new Client();
 
     public Client() {
-        this.publishers = Collections.synchronizedSet(new HashSet<Publisher>());
-        this.subscribers = Collections.synchronizedSet(new HashSet<Subscriber>());
-        this.subConnections = Collections.synchronizedSet(new HashSet<SubConnection>());
-        this.subConMonitor = new Object();
-        this.schedExecutor = Executors.newScheduledThreadPool(2, Util.threadFactory("nsq-sched"));
-        this.mapper = new ObjectMapper();
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-        mapper.setPropertyNamingStrategy(PropertyNamingStrategy.CAMEL_CASE_TO_LOWER_CASE_WITH_UNDERSCORES);
+        mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
     }
 
     //--------------------------

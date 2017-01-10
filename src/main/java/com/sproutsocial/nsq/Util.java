@@ -6,6 +6,9 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 
@@ -52,6 +55,15 @@ class Util {
     public static void cancel(ScheduledFuture task) {
         if (task != null) {
             task.cancel(false);
+        }
+    }
+
+    //useful for Collections.synchronized... that can't be iterated over without synching
+    public static <T> List<T> copy(Collection<T> col) {
+        synchronized (col) {
+            List<T> ret = new ArrayList<T>(col.size());
+            ret.addAll(col);
+            return ret;
         }
     }
 
