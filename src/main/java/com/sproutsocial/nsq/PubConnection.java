@@ -41,7 +41,7 @@ class PubConnection extends Connection {
         super.close();
         if (!publisher.isStopping) {
             //be paranoid about locks, we only care that this happens sometime soon
-            executor.execute(new Runnable() {
+            client.getSchedExecutor().execute(new Runnable() {
                 public void run() {
                     publisher.connectionClosed(PubConnection.this);
                 }

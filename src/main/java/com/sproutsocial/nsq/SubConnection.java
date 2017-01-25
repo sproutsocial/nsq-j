@@ -1,6 +1,7 @@
 package com.sproutsocial.nsq;
 
 import com.google.common.net.HostAndPort;
+import net.jcip.annotations.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,6 +66,7 @@ class SubConnection extends Connection {
         }
     }
 
+    @GuardedBy("this")
     private void messageDone() throws IOException {
         inFlight--;
         if (inFlight == 0 && isStopping) {
@@ -98,6 +100,7 @@ class SubConnection extends Connection {
         }
     }
 
+    @GuardedBy("this")
     private void checkFlush() throws IOException {
         if (unflushedCount >= maxUnflushed) {
             flush();
@@ -147,7 +150,7 @@ class SubConnection extends Connection {
 
     private void failMessage(final NSQMessage msg) {
         if (failedMessageHandler != null) {
-            executor.execute(new Runnable() {
+            handlerExecutor.execute(new Runnable() {
                 public void run() {
                     try {
                         failedMessageHandler.failed(subscription.getTopic(), subscription.getChannel(), msg);
@@ -171,7 +174,7 @@ class SubConnection extends Connection {
             failMessage(msg);
         }
         else {
-            executor.execute(new Runnable() {
+            handlerExecutor.execute(new Runnable() {
                 public void run() {
                     try {
                         handler.accept(msg);
@@ -188,7 +191,7 @@ class SubConnection extends Connection {
     public void close() {
         super.close();
         //be paranoid about locks, we only care that this happens sometime soon
-        executor.execute(new Runnable() {
+        client.getSchedExecutor().execute(new Runnable() {
             public void run() {
                 subscription.connectionClosed(SubConnection.this);
                 client.connectionClosed(SubConnection.this);

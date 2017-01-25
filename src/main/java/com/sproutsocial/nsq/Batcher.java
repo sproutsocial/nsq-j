@@ -29,7 +29,7 @@ class Batcher {
         this.topic = topic;
         this.maxSize = maxSize;
         this.maxDelayMillis = maxDelayMillis;
-        this.executor = publisher.getClient().getSchedExecutor();
+        this.executor = publisher.getBatchExecutor();
         checkNotNull(publisher);
         checkNotNull(topic);
         checkArgument(maxDelayMillis > 5);

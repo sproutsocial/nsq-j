@@ -38,18 +38,18 @@ abstract class Connection extends BasePubSub implements Closeable {
     protected long lastHeartbeat;
 
     protected final BlockingQueue<String> respQueue = new ArrayBlockingQueue<String>(1);
-    protected final ExecutorService executor;
+    protected final ExecutorService handlerExecutor;
 
     private static final ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
     private static final Set<String> nonFatalErrors = ImmutableSet.of("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED");
-    private static final String USER_AGENT = "nsq-j/0.2";
+    private static final String USER_AGENT = "nsq-j/0.2.2";
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
     public Connection(Client client, HostAndPort host) {
         super(client);
         this.host = host;
-        this.executor = client.getExecutor();
+        this.handlerExecutor = client.getExecutor();
     }
 
     public synchronized void connect(Config config) throws IOException {
@@ -236,7 +236,7 @@ abstract class Connection extends BasePubSub implements Closeable {
                 String response = readResponse();
                 if ("_heartbeat_".equals(response)) {
                     //don't block this thread
-                    executor.execute(new Runnable() {
+                    client.getSchedExecutor().execute(new Runnable() {
                         public void run() {
                             receivedHeartbeat();
                         }

@@ -22,9 +22,9 @@ public class Client {
     private final Set<SubConnection> subConnections = new CopyOnWriteArraySet<SubConnection>();
     private final ObjectMapper mapper = new ObjectMapper();
     private final Object subConMonitor = new Object();
-    private final ScheduledExecutorService schedExecutor = Executors.newScheduledThreadPool(2, Util.threadFactory("nsq-sched"));;
+    private final ScheduledExecutorService schedExecutor = Executors.newScheduledThreadPool(2, Util.threadFactory("nsq-sched"));
 
-    private ExecutorService executor;
+    private ExecutorService handlerExecutor;
     private SSLSocketFactory sslSocketFactory;
     private byte[] authSecret;
 
@@ -54,9 +54,9 @@ public class Client {
         long start = Util.clock();
         isClean &= stopSubscribers(waitMillis);
 
-        if (executor != null && !executor.isTerminated()) {
+        if (handlerExecutor != null && !handlerExecutor.isTerminated()) {
             int timeout = Math.max((int) (waitMillis - (Util.clock() - start)), 100);
-            isClean &= MoreExecutors.shutdownAndAwaitTermination(executor, timeout, TimeUnit.MILLISECONDS);
+            isClean &= MoreExecutors.shutdownAndAwaitTermination(handlerExecutor, timeout, TimeUnit.MILLISECONDS);
         }
 
         for (Publisher publisher : publishers) {
@@ -66,7 +66,7 @@ public class Client {
         int timeout = Math.max((int) (waitMillis - (Util.clock() - start)), 100);
         isClean &= MoreExecutors.shutdownAndAwaitTermination(schedExecutor, timeout, TimeUnit.MILLISECONDS);
 
-        logger.debug("executor.isTerminated:{} schedExecutor.isTerminated:{} isClean:{}", executor != null ? executor.isTerminated() : "null", schedExecutor.isTerminated(), isClean);
+        logger.debug("handlerExecutor.isTerminated:{} schedExecutor.isTerminated:{} isClean:{}", handlerExecutor != null ? handlerExecutor.isTerminated() : "null", schedExecutor.isTerminated(), isClean);
         logger.info("nsq client stopped");
         return isClean;
     }
@@ -102,15 +102,15 @@ public class Client {
 
     public synchronized void setExecutor(ExecutorService exec) {
         checkNotNull(exec);
-        checkState(this.executor == null, "executor can only be set once, must be set before subscribing");
-        this.executor = exec;
+        checkState(this.handlerExecutor == null, "executor can only be set once, must be set before subscribing");
+        this.handlerExecutor = exec;
     }
 
     public synchronized ExecutorService getExecutor() {
-        if (executor == null) {
-            executor = Executors.newFixedThreadPool(6, Util.threadFactory("nsq-sub"));
+        if (handlerExecutor == null) {
+            handlerExecutor = Executors.newFixedThreadPool(6, Util.threadFactory("nsq-sub"));
         }
-        return executor;
+        return handlerExecutor;
     }
 
     public synchronized SSLSocketFactory getSSLSocketFactory() {
