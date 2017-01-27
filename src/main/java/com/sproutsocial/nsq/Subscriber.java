@@ -3,6 +3,7 @@ package com.sproutsocial.nsq;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
+import net.jcip.annotations.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,6 +95,7 @@ public class Subscriber extends BasePubSub {
         }
     }
 
+    @GuardedBy("this")
     protected Set<HostAndPort> lookupTopic(String topic) {
         Set<HostAndPort> nsqds = new HashSet<HostAndPort>();
         for (HostAndPort lookup : lookups) {

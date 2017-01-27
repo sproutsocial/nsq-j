@@ -1,6 +1,8 @@
 package com.sproutsocial.nsq;
 
 import com.google.common.net.HostAndPort;
+import com.google.common.util.concurrent.MoreExecutors;
+import net.jcip.annotations.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +11,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -23,6 +28,7 @@ public class Publisher extends BasePubSub {
     private long failoverStart;
     private int failoverDurationSecs = 300;
     private final Map<String, Batcher> batchers = new HashMap<String, Batcher>();
+    private ScheduledExecutorService batchExecutor;
 
     private static final int DEFAULT_MAX_BATCH_SIZE = 16 * 1024;
     private static final int DEFUALT_MAX_BATCH_DELAY = 300;
@@ -44,6 +50,7 @@ public class Publisher extends BasePubSub {
         this(nsqd, null);
     }
 
+    @GuardedBy("this")
     private void checkConnection() throws IOException {
         if (con == null) {
             if (isStopping) {
@@ -58,6 +65,7 @@ public class Publisher extends BasePubSub {
         }
     }
 
+    @GuardedBy("this")
     private void connect(HostAndPort host) throws IOException {
         if (con != null) {
             con.close();
@@ -104,6 +112,7 @@ public class Publisher extends BasePubSub {
         }
     }
 
+    @GuardedBy("this")
     private void publishFailover(String topic, byte[] data) {
         try {
             if (failoverNsqd == null) {
@@ -147,6 +156,13 @@ public class Publisher extends BasePubSub {
         batchers.put(topic, batcher);
     }
 
+    synchronized ScheduledExecutorService getBatchExecutor() {
+        if (batchExecutor == null) {
+            batchExecutor = Executors.newScheduledThreadPool(1, Util.threadFactory("nsq-batch"));
+        }
+        return batchExecutor;
+    }
+
     @Override
     public synchronized void stop() {
         for (Batcher batcher : batchers.values()) {
@@ -155,6 +171,9 @@ public class Publisher extends BasePubSub {
         super.stop();
         Util.closeQuietly(con);
         con = null;
+        if (batchExecutor != null) {
+            MoreExecutors.shutdownAndAwaitTermination(batchExecutor, 40, TimeUnit.MILLISECONDS);
+        }
     }
 
     public synchronized int getFailoverDurationSecs() {
