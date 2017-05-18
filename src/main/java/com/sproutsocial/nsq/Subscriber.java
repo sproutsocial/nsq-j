@@ -66,11 +66,15 @@ public class Subscriber extends BasePubSub {
      * then the MessageHandler must be thread safe.
      */
     public synchronized void subscribe(String topic, String channel, int maxInFlight, MessageHandler handler) {
+        subscribe(topic, channel, maxInFlight, handler, null);
+    }
+
+    public synchronized void subscribe(String topic, String channel, int maxInFlight, MessageHandler handler, ExecutorService subscriptionExecutor) {
         checkNotNull(topic);
         checkNotNull(channel);
         checkNotNull(handler);
         client.addSubscriber(this);
-        Subscription sub = new Subscription(client, topic, channel, handler, this, maxInFlight);
+        Subscription sub = new Subscription(client, topic, channel, handler, this, maxInFlight, subscriptionExecutor);
         if (handler instanceof BackoffHandler) {
             ((BackoffHandler)handler).setSubscription(sub); //awkward
         }
@@ -122,13 +126,17 @@ public class Subscriber extends BasePubSub {
         return nsqds;
     }
 
-    @Override
-    public void stop() {
+    public void stop(int waitMillis) {
         super.stop();
         for (Subscription subscription : subscriptions) {
-            subscription.stop();
+            subscription.stop(waitMillis);
         }
         logger.info("subscriber stopped");
+    }
+
+    @Override
+    public void stop() {
+        stop(5000);
     }
 
     public synchronized int getDefaultMaxInFlight() {
