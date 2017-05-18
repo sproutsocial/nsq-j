@@ -2,12 +2,15 @@ package com.sproutsocial.nsq;
 
 import com.google.common.collect.Lists;
 import com.google.common.net.HostAndPort;
+import com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import static com.sproutsocial.nsq.Util.copy;
 
@@ -19,17 +22,23 @@ class Subscription extends BasePubSub {
     private final Subscriber subscriber;
     private final Map<HostAndPort, SubConnection> connectionMap = Collections.synchronizedMap(new HashMap<HostAndPort, SubConnection>());
     private int maxInFlight;
+    private final ExecutorService subscriptionExecutor;
     private ScheduledFuture lowFlightRotateTask;
 
     private static final Logger logger = LoggerFactory.getLogger(Subscription.class);
 
     public Subscription(Client client, String topic, String channel, MessageHandler handler, Subscriber subscriber, int maxInFlight) {
+        this(client, topic, channel, handler, subscriber, maxInFlight, null);
+    }
+
+    public Subscription(Client client, String topic, String channel, MessageHandler handler, Subscriber subscriber, int maxInFlight, ExecutorService subscriptionExecutor) {
         super(client);
         this.topic = topic;
         this.channel = channel;
         this.handler = handler;
         this.subscriber = subscriber;
         this.maxInFlight = maxInFlight;
+        this.subscriptionExecutor = subscriptionExecutor;
     }
 
     public synchronized int getMaxInFlight() {
@@ -145,8 +154,7 @@ class Subscription extends BasePubSub {
         }
     }
 
-    @Override
-    public void stop() {
+    public void stop(int waitMillis) {
         super.stop();
         synchronized (this) {
             Util.cancel(lowFlightRotateTask);
@@ -155,6 +163,15 @@ class Subscription extends BasePubSub {
         for (SubConnection con : copy(connectionMap.values())) {
             con.stop();
         }
+        if (subscriptionExecutor != null) {
+            logger.debug("shutting down executor for topic subscription:{}", topic);
+            MoreExecutors.shutdownAndAwaitTermination(subscriptionExecutor, waitMillis, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    @Override
+    public void stop() {
+        stop(5000);
     }
 
     public synchronized void connectionClosed(SubConnection closedCon) {
@@ -182,6 +199,10 @@ class Subscription extends BasePubSub {
 
     public String getChannel() {
         return channel;
+    }
+
+    public ExecutorService getExecutor() {
+        return subscriptionExecutor;
     }
 
     @Override

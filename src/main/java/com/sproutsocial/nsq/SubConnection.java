@@ -150,7 +150,7 @@ class SubConnection extends Connection {
 
     private void failMessage(final NSQMessage msg) {
         if (failedMessageHandler != null) {
-            handlerExecutor.execute(new Runnable() {
+            getExecutor().execute(new Runnable() {
                 public void run() {
                     try {
                         failedMessageHandler.failed(subscription.getTopic(), subscription.getChannel(), msg);
@@ -174,7 +174,7 @@ class SubConnection extends Connection {
             failMessage(msg);
         }
         else {
-            handlerExecutor.execute(new Runnable() {
+            getExecutor().execute(new Runnable() {
                 public void run() {
                     try {
                         handler.accept(msg);
@@ -221,4 +221,12 @@ class SubConnection extends Connection {
                 super.stateDesc(), inFlight, maxInFlight, finishedCount, requeuedCount);
     }
 
+    private ExecutorService getExecutor() {
+        ExecutorService subscriptionExecutor = subscription.getExecutor();
+        if (subscriptionExecutor == null) {
+            return handlerExecutor;
+        } else {
+            return subscriptionExecutor;
+        }
+    }
 }

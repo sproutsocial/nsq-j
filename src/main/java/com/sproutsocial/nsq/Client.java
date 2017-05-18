@@ -80,7 +80,7 @@ public class Client {
     public synchronized boolean stopSubscribers(int waitMillis) {
         checkArgument(waitMillis > 0, "waitMillis must be greater than zero");
         for (Subscriber subscriber : subscribers) {
-            subscriber.stop();
+            subscriber.stop(waitMillis);
         }
         synchronized (subConMonitor) {
             if (!subConnections.isEmpty()) { //don't loop until empty, try once and if we get interrupted stop right away
