@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executors;
 
 import static org.junit.Assert.assertEquals;
 
@@ -24,6 +25,27 @@ public class SubscribeIT extends SubscribeBase {
         Subscriber subscriber = new Subscriber(10, "127.0.0.1");
         subscriber.subscribe(topic, "chan", handler);
 
+        postMessages("localhost:4151", topic, msgs.subList(1, msgs.size()));
+
+        Util.sleepQuietly(2000);
+        subscriber.stop();
+
+        Collections.sort(received);
+        //debugFail(received, msgs);
+        assertEquals(msgs, received);
+    }
+
+    @Test
+    public void testSubsWithSeparatePools() throws Exception {
+        List<String> msgs = messages(300, 800);
+
+        String topic = "subtest_executor";
+        post("localhost:4151", topic, "pub", msgs.get(0));
+
+        Util.sleepQuietly(1000);
+
+        Subscriber subscriber = new Subscriber(10, "127.0.0.1");
+        subscriber.subscribe(topic, "chan", 30, handler, Executors.newFixedThreadPool(1));
 
         postMessages("localhost:4151", topic, msgs.subList(1, msgs.size()));
 

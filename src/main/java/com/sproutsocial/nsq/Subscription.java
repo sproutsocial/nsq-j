@@ -164,6 +164,7 @@ class Subscription extends BasePubSub {
             con.stop();
         }
         if (subscriptionExecutor != null) {
+            logger.debug("shutting down executor for topic subscription:{}", topic);
             MoreExecutors.shutdownAndAwaitTermination(subscriptionExecutor, waitMillis, TimeUnit.MILLISECONDS);
         }
     }
