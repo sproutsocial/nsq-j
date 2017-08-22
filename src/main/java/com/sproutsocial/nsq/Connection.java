@@ -11,6 +11,7 @@ import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -54,7 +55,9 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     public synchronized void connect(Config config) throws IOException {
         addClientConfig(config);
-        Socket sock = new Socket(host.getHost(), host.getPort());
+        Socket sock = new Socket();
+        sock.setSoTimeout(30000);
+        sock.connect(new InetSocketAddress(host.getHost(), host.getPort()), 30000);
         in = new DataInputStream(new BufferedInputStream(sock.getInputStream()));
         out = new DataOutputStream(new BufferedOutputStream(sock.getOutputStream()));
         out.write("  V2".getBytes(Charsets.US_ASCII));
@@ -259,9 +262,9 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     private synchronized void receivedHeartbeat() {
         try {
-            lastHeartbeat = Util.clock();
             out.write("NOP\n".getBytes(Charsets.US_ASCII));
             out.flush(); //NOP does not update lastActionFlush
+            lastHeartbeat = Util.clock();
         }
         catch (Throwable t) {
             logger.error("receivedHeartbeat error", t);
