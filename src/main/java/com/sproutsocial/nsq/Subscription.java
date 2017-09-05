@@ -62,7 +62,7 @@ class Subscription extends BasePubSub {
                     con.connect(subscriber.getConfig());
                     connectionMap.put(activeHost, con);
                 }
-                catch (IOException e) {
+                catch (Exception e) {
                     logger.error("error connecting to:{}", activeHost, e);
                 }
             }
