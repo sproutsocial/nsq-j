@@ -10,8 +10,10 @@ import org.slf4j.LoggerFactory;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -25,19 +27,23 @@ public class Subscriber extends BasePubSub {
     private final List<HostAndPort> lookups = Lists.newArrayList();
     private final List<Subscription> subscriptions = Lists.newArrayList();
     private final int lookupIntervalSecs;
+    private int maxLookupFailuresBeforeError;
     private int defaultMaxInFlight = 200;
     private int maxFlushDelayMillis = 2000;
     private int maxAttempts = Integer.MAX_VALUE;
     private FailedMessageHandler failedMessageHandler = null;
+    private final Map<String, Integer> failures = new HashMap<String, Integer>();
 
     private static final int DEFAULT_LOOKUP_INTERVAL_SECS = 60;
+    private static final int DEFAULT_MAX_LOOKUP_FAILURES_BEFORE_ERROR = 5;
 
     private static final Logger logger = LoggerFactory.getLogger(Subscriber.class);
 
-    public Subscriber(Client client, int lookupIntervalSecs, String... lookupHosts) {
+    public Subscriber(Client client, int lookupIntervalSecs, int maxLookupFailuresBeforeError, String... lookupHosts) {
         super(client);
         checkArgument(lookupIntervalSecs > 0, "lookupIntervalSecs must be greater than zero");
         this.lookupIntervalSecs = lookupIntervalSecs;
+        this.maxLookupFailuresBeforeError = maxLookupFailuresBeforeError;
         client.scheduleAtFixedRate(new Runnable() {
                 public void run() {
                     lookup();
@@ -49,11 +55,12 @@ public class Subscriber extends BasePubSub {
     }
 
     public Subscriber(int lookupIntervalSecs, String... lookupHosts) {
-        this(Client.getDefaultClient(), lookupIntervalSecs, lookupHosts);
+        this(Client.getDefaultClient(), lookupIntervalSecs, DEFAULT_MAX_LOOKUP_FAILURES_BEFORE_ERROR, lookupHosts);
     }
 
     public Subscriber(String... lookupHosts) {
-        this(Client.getDefaultClient(), DEFAULT_LOOKUP_INTERVAL_SECS, lookupHosts);
+        this(Client.getDefaultClient(), DEFAULT_LOOKUP_INTERVAL_SECS, DEFAULT_MAX_LOOKUP_FAILURES_BEFORE_ERROR,
+                lookupHosts);
     }
 
     public synchronized void subscribe(String topic, String channel, MessageHandler handler) {
@@ -99,8 +106,9 @@ public class Subscriber extends BasePubSub {
     protected Set<HostAndPort> lookupTopic(String topic) {
         Set<HostAndPort> nsqds = new HashSet<HostAndPort>();
         for (HostAndPort lookup : lookups) {
+            String urlString = String.format("http://%s/lookup?topic=%s", lookup, topic);
             try {
-                URL url = new URL(String.format("http://%s/lookup?topic=%s", lookup, topic));
+                URL url = new URL(urlString);
                 HttpURLConnection con = (HttpURLConnection) url.openConnection();
                 if (con.getResponseCode() != 200) {
                     logger.debug("ignoring lookup resp:{} nsqlookupd:{} topic:{}", con.getResponseCode(), lookup, topic);
@@ -113,9 +121,22 @@ public class Subscriber extends BasePubSub {
                     nsqds.add(HostAndPort.fromParts(prod.get("broadcast_address").asText(), prod.get("tcp_port").asInt()));
                 }
                 con.getInputStream().close();
-            }
-            catch (Exception e) {
-                logger.error("lookup error, ignoring nsqlookupd:{} topic:{}", lookup, topic, e);
+                this.failures.clear();
+            } catch (Exception e) {
+                Integer lookupFailureCount = this.failures.get(urlString);
+                if (lookupFailureCount == null) {
+                    lookupFailureCount = 0;
+                }
+                lookupFailureCount++;
+                this.failures.put(urlString, lookupFailureCount);
+
+                if (lookupFailureCount >= this.maxLookupFailuresBeforeError) {
+                    logger.error("lookup failure. lookup failed for {} consecutive tries. nsqlookupd:{} topic:{}",
+                            lookupFailureCount, lookup, topic, e);
+                } else {
+                    logger.warn("lookup failure. lookup failed for {} consecutive tries. nsqlookupd:{} topic:{}",
+                            lookupFailureCount, lookup, topic, e);
+                }
             }
         }
         //logger.debug("lookup topic:{} result:{}", topic, nsqds);
