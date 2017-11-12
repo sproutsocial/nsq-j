@@ -121,7 +121,7 @@ public class Subscriber extends BasePubSub {
                     nsqds.add(HostAndPort.fromParts(prod.get("broadcast_address").asText(), prod.get("tcp_port").asInt()));
                 }
                 con.getInputStream().close();
-                this.failures.clear();
+                this.failures.remove(urlString);
             } catch (Exception e) {
                 Integer lookupFailureCount = this.failures.get(urlString);
                 if (lookupFailureCount == null) {
