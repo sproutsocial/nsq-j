@@ -40,7 +40,7 @@ public class SubscriptionTest {
     @Test
     public void testDistributeInFlight() throws Exception {
         Client client = new Client();
-        Subscriber subscriber = new Subscriber(client, 30);
+        Subscriber subscriber = new Subscriber(client, 30, 5);
         Subscription sub = new Subscription(client, "topic", "channel", null, subscriber, 200);
 
         testInFlight(1, 1, sub, 200);
@@ -117,7 +117,7 @@ public class SubscriptionTest {
     @Test
     public void testLowFlight() throws Exception {
         Client client = new Client();
-        Subscriber subscriber = new Subscriber(client, 30);
+        Subscriber subscriber = new Subscriber(client, 30, 5);
         Subscription sub = new Subscription(client, "topic", "channel", null, subscriber, 100);
 
         testLowFlight(subscriber, sub, 2, 3);
