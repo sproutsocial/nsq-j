@@ -43,7 +43,7 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     private static final ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
     private static final Set<String> nonFatalErrors = ImmutableSet.of("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED");
-    private static final String USER_AGENT = "nsq-j/0.2.2";
+    private static final String USER_AGENT = String.format("nsq-j/%s", Const.VERSION);
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
