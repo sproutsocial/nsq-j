@@ -115,7 +115,10 @@ public class Subscriber extends BasePubSub {
                     continue;
                 }
                 JsonNode root = client.getObjectMapper().readTree(con.getInputStream()); //don't need another buffer here, jackson buffers
-                JsonNode producers = root.get("data").get("producers");
+                if (root.has("data")) {
+                    root = root.get("data"); //nsq before version 1.0 wrapped the response with status_code/data
+                }
+                JsonNode producers = root.get("producers");
                 for (int i = 0; i < producers.size(); i++) {
                     JsonNode prod = producers.get(i);
                     nsqds.add(HostAndPort.fromParts(prod.get("broadcast_address").asText(), prod.get("tcp_port").asInt()));

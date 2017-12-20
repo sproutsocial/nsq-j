@@ -21,6 +21,13 @@ class PubConnection extends Connection {
         flushAndReadOK();
     }
 
+    public synchronized void publishDeferred(String topic, byte[] data, long delayMillis) throws IOException {
+        respQueue.clear();
+        writeCommand("DPUB", topic, Long.toString(delayMillis));
+        write(data);
+        flushAndReadOK();
+    }
+
     public synchronized void publish(String topic, List<byte[]> dataList) throws IOException {
         respQueue.clear();
         writeCommand("MPUB", topic);

@@ -6,7 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
 
 class SubConnection extends Connection {
 
@@ -68,7 +67,7 @@ class SubConnection extends Connection {
 
     @GuardedBy("this")
     private void messageDone() throws IOException {
-        inFlight--;
+        inFlight = Math.max(inFlight - 1, 0);
         if (inFlight == 0 && isStopping) {
             flushAndClose();
         }

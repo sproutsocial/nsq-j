@@ -96,6 +96,22 @@ public class Publisher extends BasePubSub {
         }
     }
 
+    public synchronized void publishDeferred(String topic, byte[] data, long delay, TimeUnit unit) {
+        checkNotNull(topic);
+        checkNotNull(data);
+        checkArgument(data.length > 0);
+        checkArgument(delay > 0);
+        checkNotNull(unit);
+        try {
+            checkConnection();
+            con.publishDeferred(topic, data, unit.toMillis(delay));
+        }
+        catch (Exception e) {
+            //deferred publish never fails over
+            throw new NSQException("deferred publish failed", e);
+        }
+    }
+
     public synchronized void publish(String topic, List<byte[]> dataList) {
         checkNotNull(topic);
         checkNotNull(dataList);

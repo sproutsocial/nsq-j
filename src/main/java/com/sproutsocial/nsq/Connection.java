@@ -6,6 +6,8 @@ import com.google.common.net.HostAndPort;
 import net.jcip.annotations.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xerial.snappy.SnappyFramedInputStream;
+import org.xerial.snappy.SnappyFramedOutputStream;
 
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
@@ -158,11 +160,13 @@ abstract class Connection extends BasePubSub implements Closeable {
             readResponse();
         }
         else if (serverConfig.getSnappy()) {
-            logger.info("snappy compression not yet implemented");
-            //logger.debug("adding snappy compression");
-            //in = new DataInputStream(new SnappyFramedInputStream(sock.getInputStream()));
-            //out = new DataOutputStream(new SnappyFramedOutputStream(sock.getOutputStream()));
-            //readResponse();
+            logger.debug("adding snappy compression");
+            if (serverConfig.getVersion().startsWith("0.")) {
+                throw new NSQException("snappy compression only supported on nsqd 1.0 and up");
+            }
+            in = new DataInputStream(new SnappyFramedInputStream(sock.getInputStream()));
+            out = new DataOutputStream(new SnappyFramedOutputStream(sock.getOutputStream()));
+            readResponse();
         }
     }
 
