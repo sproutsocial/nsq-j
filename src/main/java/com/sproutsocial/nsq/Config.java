@@ -127,4 +127,22 @@ public class Config {
     }
     //endregion
 
+    @Override
+    public String toString() {
+        return "Config{" +
+                "clientId='" + clientId + '\'' +
+                ", hostname='" + hostname + '\'' +
+                ", featureNegotiation=" + featureNegotiation +
+                ", heartbeatInterval=" + heartbeatInterval +
+                ", outputBufferSize=" + outputBufferSize +
+                ", outputBufferTimeout=" + outputBufferTimeout +
+                ", tlsV1=" + tlsV1 +
+                ", snappy=" + snappy +
+                ", deflate=" + deflate +
+                ", deflateLevel=" + deflateLevel +
+                ", sampleRate=" + sampleRate +
+                ", userAgent='" + userAgent + '\'' +
+                ", msgTimeout=" + msgTimeout +
+                '}';
+    }
 }

@@ -1,7 +1,5 @@
 package com.sproutsocial.nsq;
 
-import com.google.common.net.HostAndPort;
-
 import java.io.IOException;
 import java.util.List;
 

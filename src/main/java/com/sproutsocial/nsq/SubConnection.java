@@ -1,6 +1,5 @@
 package com.sproutsocial.nsq;
 
-import com.google.common.net.HostAndPort;
 import net.jcip.annotations.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

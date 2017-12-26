@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static com.sproutsocial.nsq.Util.checkArgument;
+import static com.sproutsocial.nsq.Util.checkNotNull;
 
 class Batcher {
 
