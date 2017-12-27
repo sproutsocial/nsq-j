@@ -4,20 +4,41 @@
 
     <groupId>com.sproutsocial</groupId>
     <artifactId>nsq-j</artifactId>
-    <version>0.2.4</version>
+    <version>0.8</version>
     <packaging>jar</packaging>
 
     <name>nsq-j</name>
+    <description>Java client for the NSQ realtime distributed messaging platform</description>
+    <url>https://github.com/sproutsocial/nsq-j</url>
+
+    <licenses>
+        <license>
+            <name>MIT License</name>
+            <url>http://www.opensource.org/licenses/mit-license.php</url>
+        </license>
+    </licenses>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>java8-doclint-disabled</id>
+            <activation>
+                <jdk>[1.8,)</jdk>
+            </activation>
+            <properties>
+                <doclint.opts>-Xdoclint:none</doclint.opts>
+            </properties>
+        </profile>
+    </profiles>
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.7.0</version>
                 <configuration>
                     <source>1.6</source>
                     <target>1.6</target>
@@ -49,6 +70,23 @@
                     </execution>
                 </executions>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.9.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <show>public</show>
+                    <additionalparam>${doclint.opts} -notimestamp</additionalparam> <!-- doclint.opts in profile, required on java 8+ only -->
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
@@ -72,6 +110,8 @@
             <version>1.0</version>
         </dependency>
 
+        <!-- optional -->
+
         <dependency>
             <groupId>org.xerial.snappy</groupId>
             <artifactId>snappy-java</artifactId>
@@ -91,6 +131,8 @@
             <version>1.2.3</version>
             <optional>true</optional>
         </dependency>
+
+        <!-- test -->
 
         <dependency>
             <groupId>junit</groupId>
@@ -118,6 +160,28 @@
         </dependency>
 
     </dependencies>
+
+    <!--
+    javadocs in gh-pages branch https://pages.github.com/
+    mvn clean javadoc:javadoc
+    rsync -crv target/site/apidocs/ [local-nsq-j-gh-pages]
+    -->
+
+    <developers>
+        <!-- not a list of contributors, required to publish to maven central -->
+        <developer>
+            <name>Rob Seed</name>
+            <email>rseed@sproutsocial.com</email>
+            <organization>Sprout Social</organization>
+            <organizationUrl>https://sproutsocial.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git://github.com/sproutsocial/nsq-j.git</connection>
+        <developerConnection>scm:git:ssh://github.com:sproutsocial/nsq-j.git</developerConnection>
+        <url>http://github.com/sproutsocial/nsq-j/tree/master</url>
+    </scm>
 
     <distributionManagement>
         <repository>

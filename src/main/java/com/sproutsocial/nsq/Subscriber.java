@@ -67,6 +67,15 @@ public class Subscriber extends BasePubSub {
         subscribe(topic, channel, defaultMaxInFlight, handler);
     }
 
+    public synchronized void subscribe(String topic, String channel, final MessageDataHandler handler) {
+        subscribe(topic, channel, defaultMaxInFlight, new BackoffHandler(new MessageHandler() {
+            @Override
+            public void accept(Message msg) {
+                handler.accept(msg.getData());
+            }
+        }));
+    }
+
     /**
      * Subscribe to a topic.
      * If the configured executor is multi-threaded and maxInFlight > 1 (the defaults)

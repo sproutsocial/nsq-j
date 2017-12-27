@@ -38,6 +38,10 @@ public class Client {
         return defaultClient;
     }
 
+    public synchronized boolean stop() {
+        return stop(2000);
+    }
+
     /**
      * Stops all subscribers, waits for in-flight messages to be finished or requeued, stops the executor that handles messages,
      * then stops all publishers. All connections will be closed and no threads started by this client should be running when this returns.
