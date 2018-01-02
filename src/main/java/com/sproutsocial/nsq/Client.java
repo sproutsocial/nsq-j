@@ -1,9 +1,8 @@
 package com.sproutsocial.nsq;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.gson.FieldNamingPolicy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,7 +11,9 @@ import javax.net.ssl.SSLSocketFactory;
 import java.util.Set;
 import java.util.concurrent.*;
 
-import static com.google.common.base.Preconditions.*;
+import static com.sproutsocial.nsq.Util.checkArgument;
+import static com.sproutsocial.nsq.Util.checkNotNull;
+import static com.sproutsocial.nsq.Util.checkState;
 
 @ThreadSafe
 public class Client {
@@ -20,7 +21,7 @@ public class Client {
     private final Set<Publisher> publishers = new CopyOnWriteArraySet<Publisher>();
     private final Set<Subscriber> subscribers = new CopyOnWriteArraySet<Subscriber>();
     private final Set<SubConnection> subConnections = new CopyOnWriteArraySet<SubConnection>();
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
     private final Object subConMonitor = new Object();
     private final ScheduledExecutorService schedExecutor = Executors.newScheduledThreadPool(2, Util.threadFactory("nsq-sched"));
 
@@ -31,15 +32,14 @@ public class Client {
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     private static final Client defaultClient = new Client();
 
-    public Client() {
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-        mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
-    }
-
     //--------------------------
 
     public static Client getDefaultClient() {
         return defaultClient;
+    }
+
+    public synchronized boolean stop() {
+        return stop(2000);
     }
 
     /**
@@ -48,7 +48,7 @@ public class Client {
      * @param waitMillis Time to wait for everything to stop, in milliseconds. Soft limit that may be exceeded by about 200 ms.
      */
     public synchronized boolean stop(int waitMillis) {
-        checkArgument(waitMillis > 0, "waitMillis must be greater than zero");
+        checkArgument(waitMillis > 0);
         logger.info("stopping nsq client");
         boolean isClean = true;
         long start = Util.clock();
@@ -56,7 +56,7 @@ public class Client {
 
         if (handlerExecutor != null && !handlerExecutor.isTerminated()) {
             int timeout = Math.max((int) (waitMillis - (Util.clock() - start)), 100);
-            isClean &= MoreExecutors.shutdownAndAwaitTermination(handlerExecutor, timeout, TimeUnit.MILLISECONDS);
+            isClean &= Util.shutdownAndAwaitTermination(handlerExecutor, timeout, TimeUnit.MILLISECONDS);
         }
 
         for (Publisher publisher : publishers) {
@@ -64,7 +64,7 @@ public class Client {
         }
 
         int timeout = Math.max((int) (waitMillis - (Util.clock() - start)), 100);
-        isClean &= MoreExecutors.shutdownAndAwaitTermination(schedExecutor, timeout, TimeUnit.MILLISECONDS);
+        isClean &= Util.shutdownAndAwaitTermination(schedExecutor, timeout, TimeUnit.MILLISECONDS);
 
         logger.debug("handlerExecutor.isTerminated:{} schedExecutor.isTerminated:{} isClean:{}", handlerExecutor != null ? handlerExecutor.isTerminated() : "null", schedExecutor.isTerminated(), isClean);
         logger.info("nsq client stopped");
@@ -78,7 +78,7 @@ public class Client {
      * @param waitMillis Time to wait for in-flight messages to be finished, in milliseconds.
      */
     public synchronized boolean stopSubscribers(int waitMillis) {
-        checkArgument(waitMillis > 0, "waitMillis must be greater than zero");
+        checkArgument(waitMillis > 0);
         for (Subscriber subscriber : subscribers) {
             subscriber.stop();
         }
@@ -131,10 +131,6 @@ public class Client {
 
     public synchronized void setAuthSecret(String authSecret) {
         this.authSecret = authSecret.getBytes();
-    }
-
-    public final ObjectMapper getObjectMapper() {
-        return mapper;
     }
 
     //--------------------------
@@ -192,6 +188,10 @@ public class Client {
                 subConMonitor.notifyAll();
             }
         }
+    }
+
+    Gson getGson() {
+        return gson;
     }
 
 }

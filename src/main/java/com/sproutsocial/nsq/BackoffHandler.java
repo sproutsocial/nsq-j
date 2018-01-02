@@ -46,7 +46,7 @@ public class BackoffHandler implements MessageHandler {
             }
             msg.finish();
         }
-        catch (Exception e) { //throwable?
+        catch (Exception e) {
             failure(msg, e);
         }
     }

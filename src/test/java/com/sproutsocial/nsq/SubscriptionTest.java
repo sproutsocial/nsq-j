@@ -3,7 +3,6 @@ package com.sproutsocial.nsq;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
-import com.google.common.net.HostAndPort;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

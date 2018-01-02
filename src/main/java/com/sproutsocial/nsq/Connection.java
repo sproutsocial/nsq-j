@@ -1,11 +1,10 @@
 package com.sproutsocial.nsq;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.net.HostAndPort;
 import net.jcip.annotations.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xerial.snappy.SnappyFramedInputStream;
+import org.xerial.snappy.SnappyFramedOutputStream;
 
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
@@ -13,6 +12,9 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.zip.Deflater;
@@ -20,7 +22,7 @@ import java.util.zip.DeflaterOutputStream;
 import java.util.zip.Inflater;
 import java.util.zip.InflaterInputStream;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
+import static com.sproutsocial.nsq.Util.firstNonNull;
 
 abstract class Connection extends BasePubSub implements Closeable {
 
@@ -42,8 +44,10 @@ abstract class Connection extends BasePubSub implements Closeable {
     protected final ExecutorService handlerExecutor;
 
     private static final ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
-    private static final Set<String> nonFatalErrors = ImmutableSet.of("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED");
-    private static final String USER_AGENT = String.format("nsq-j/%s", Const.VERSION);
+    private static final Set<String> nonFatalErrors = Collections.unmodifiableSet(new HashSet<String>(
+            Arrays.asList("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED")));
+    private static String VERSION = "0.2.4";
+    private static final String USER_AGENT = String.format("nsq-j/%s", VERSION);
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
@@ -60,12 +64,12 @@ abstract class Connection extends BasePubSub implements Closeable {
         sock.connect(new InetSocketAddress(host.getHost(), host.getPort()), 30000);
         in = new DataInputStream(new BufferedInputStream(sock.getInputStream()));
         out = new DataOutputStream(new BufferedOutputStream(sock.getOutputStream()));
-        out.write("  V2".getBytes(Charsets.US_ASCII));
+        out.write("  V2".getBytes(Util.US_ASCII));
 
-        String response = connectCommand("IDENTIFY", client.getObjectMapper().writeValueAsBytes(config));
+        String response = connectCommand("IDENTIFY", client.getGson().toJson(config).getBytes(Util.UTF_8));
 
-        ServerConfig serverConfig = client.getObjectMapper().readValue(response, ServerConfig.class);
-        logger.debug("serverConfig:{}", client.getObjectMapper().writerWithDefaultPrettyPrinter().writeValueAsString(serverConfig));
+        ServerConfig serverConfig = client.getGson().fromJson(response, ServerConfig.class);
+        logger.debug("serverConfig:{}", response);
         setConfig(serverConfig);
         msgTimeout = firstNonNull(serverConfig.getMsgTimeout(), 60000);
         heartbeatInterval = firstNonNull(serverConfig.getHeartbeatInterval(), 30000);
@@ -104,7 +108,7 @@ abstract class Connection extends BasePubSub implements Closeable {
     }
 
     private String connectCommand(String command, byte[] data) throws IOException {
-        out.write((command + "\n").getBytes(Charsets.US_ASCII));
+        out.write((command + "\n").getBytes(Util.US_ASCII));
         write(data);
         out.flush();
         return readResponse();
@@ -158,11 +162,13 @@ abstract class Connection extends BasePubSub implements Closeable {
             readResponse();
         }
         else if (serverConfig.getSnappy()) {
-            logger.info("snappy compression not yet implemented");
-            //logger.debug("adding snappy compression");
-            //in = new DataInputStream(new SnappyFramedInputStream(sock.getInputStream()));
-            //out = new DataOutputStream(new SnappyFramedOutputStream(sock.getOutputStream()));
-            //readResponse();
+            logger.debug("adding snappy compression");
+            if (serverConfig.getVersion().startsWith("0.")) {
+                throw new NSQException("snappy compression only supported on nsqd 1.0 and up");
+            }
+            in = new DataInputStream(new SnappyFramedInputStream(sock.getInputStream()));
+            out = new DataOutputStream(new SnappyFramedOutputStream(sock.getOutputStream()));
+            readResponse();
         }
     }
 
@@ -185,12 +191,12 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     @GuardedBy("this")
     protected void writeCommand(String cmd, Object param1, Object param2) throws IOException {
-        out.write(String.format("%s %s %s\n", cmd, param1, param2).getBytes(Charsets.US_ASCII));
+        out.write(String.format("%s %s %s\n", cmd, param1, param2).getBytes(Util.US_ASCII));
     }
 
     @GuardedBy("this")
     protected void writeCommand(String cmd, Object param) throws IOException {
-        out.write(String.format("%s %s\n", cmd, param).getBytes(Charsets.US_ASCII));
+        out.write(String.format("%s %s\n", cmd, param).getBytes(Util.US_ASCII));
     }
 
     @GuardedBy("this")
@@ -262,7 +268,7 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     private synchronized void receivedHeartbeat() {
         try {
-            out.write("NOP\n".getBytes(Charsets.US_ASCII));
+            out.write("NOP\n".getBytes(Util.US_ASCII));
             out.flush(); //NOP does not update lastActionFlush
             lastHeartbeat = Util.clock();
         }
@@ -282,7 +288,7 @@ abstract class Connection extends BasePubSub implements Closeable {
     }
 
     private String readAscii(int size) throws IOException {
-        return new String(readBytes(size), Charsets.US_ASCII);
+        return new String(readBytes(size), Util.US_ASCII);
     }
 
     protected void flushAndReadOK() throws IOException {

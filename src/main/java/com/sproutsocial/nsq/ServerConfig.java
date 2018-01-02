@@ -54,4 +54,14 @@ class ServerConfig extends Config {
     }
     //endregion
 
+    @Override
+    public String toString() {
+        return "ServerConfig{" +
+                "version='" + version + '\'' +
+                ", maxRdyCount=" + maxRdyCount +
+                ", maxMsgTimeout=" + maxMsgTimeout +
+                ", maxDeflateLevel=" + maxDeflateLevel +
+                ", authRequired=" + authRequired +
+                "} " + super.toString();
+    }
 }

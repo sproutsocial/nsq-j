@@ -2,7 +2,7 @@ package com.sproutsocial.nsq;
 
 /**
  * Configuration sent to nsqd with the IDENTIFY command
- * http://nsq.io/clients/tcp_protocol_spec.html#a-nameidentifyidentifya
+ * http://nsq.io/clients/tcp_protocol_spec.html#identify
  * to negotiate the features to use on a connection.
  */
 public class Config {
@@ -127,4 +127,22 @@ public class Config {
     }
     //endregion
 
+    @Override
+    public String toString() {
+        return "Config{" +
+                "clientId='" + clientId + '\'' +
+                ", hostname='" + hostname + '\'' +
+                ", featureNegotiation=" + featureNegotiation +
+                ", heartbeatInterval=" + heartbeatInterval +
+                ", outputBufferSize=" + outputBufferSize +
+                ", outputBufferTimeout=" + outputBufferTimeout +
+                ", tlsV1=" + tlsV1 +
+                ", snappy=" + snappy +
+                ", deflate=" + deflate +
+                ", deflateLevel=" + deflateLevel +
+                ", sampleRate=" + sampleRate +
+                ", userAgent='" + userAgent + '\'' +
+                ", msgTimeout=" + msgTimeout +
+                '}';
+    }
 }

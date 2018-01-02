@@ -1,7 +1,5 @@
 package com.sproutsocial.nsq;
 
-import com.google.common.net.HostAndPort;
-import com.google.common.util.concurrent.MoreExecutors;
 import net.jcip.annotations.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
@@ -15,8 +13,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static com.sproutsocial.nsq.Util.checkArgument;
+import static com.sproutsocial.nsq.Util.checkNotNull;
 
 @ThreadSafe
 public class Publisher extends BasePubSub {
@@ -96,6 +94,22 @@ public class Publisher extends BasePubSub {
         }
     }
 
+    public synchronized void publishDeferred(String topic, byte[] data, long delay, TimeUnit unit) {
+        checkNotNull(topic);
+        checkNotNull(data);
+        checkArgument(data.length > 0);
+        checkArgument(delay > 0);
+        checkNotNull(unit);
+        try {
+            checkConnection();
+            con.publishDeferred(topic, data, unit.toMillis(delay));
+        }
+        catch (Exception e) {
+            //deferred publish never fails over
+            throw new NSQException("deferred publish failed", e);
+        }
+    }
+
     public synchronized void publish(String topic, List<byte[]> dataList) {
         checkNotNull(topic);
         checkNotNull(dataList);
@@ -172,7 +186,7 @@ public class Publisher extends BasePubSub {
         Util.closeQuietly(con);
         con = null;
         if (batchExecutor != null) {
-            MoreExecutors.shutdownAndAwaitTermination(batchExecutor, 40, TimeUnit.MILLISECONDS);
+            Util.shutdownAndAwaitTermination(batchExecutor, 40, TimeUnit.MILLISECONDS);
         }
     }
 

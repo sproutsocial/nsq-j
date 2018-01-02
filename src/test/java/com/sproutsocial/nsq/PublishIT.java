@@ -14,7 +14,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 
-//run one test: mvn -Dit.test=PublishIT#testSnappy verify
+//run one test: mvn "-Dit.test=PublishIT#testSnappy" verify
 
 public class PublishIT extends TestBase {
 
@@ -132,16 +132,14 @@ public class PublishIT extends TestBase {
         assertEquals(sent, received);
     }
 
-    /* FAIL! - testMultiPub fails - buffer sizes? try with big single message?
     @Test
     public void testSnappy() throws Exception {
         System.out.println("testSnappy. random seed:" + seed);
         Config config = new Config();
         config.setSnappy(true);
-        testPub(config);
+        testPub(config, 500);
         testMultiPub(config);
     }
-    */
 
     @Test
     public void testDeflate() throws Exception {

@@ -1,7 +1,5 @@
 package com.sproutsocial.nsq;
 
-import com.google.common.net.HostAndPort;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -17,6 +15,13 @@ class PubConnection extends Connection {
     public synchronized void publish(String topic, byte[] data) throws IOException {
         respQueue.clear();
         writeCommand("PUB", topic);
+        write(data);
+        flushAndReadOK();
+    }
+
+    public synchronized void publishDeferred(String topic, byte[] data, long delayMillis) throws IOException {
+        respQueue.clear();
+        writeCommand("DPUB", topic, Long.toString(delayMillis));
         write(data);
         flushAndReadOK();
     }

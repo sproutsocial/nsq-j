@@ -1,15 +1,15 @@
 package com.sproutsocial.nsq;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.google.common.collect.Lists;
-import com.google.common.net.HostAndPort;
 import net.jcip.annotations.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -18,14 +18,14 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import static com.sproutsocial.nsq.Util.checkArgument;
+import static com.sproutsocial.nsq.Util.checkNotNull;
 
 @ThreadSafe
 public class Subscriber extends BasePubSub {
 
-    private final List<HostAndPort> lookups = Lists.newArrayList();
-    private final List<Subscription> subscriptions = Lists.newArrayList();
+    private final List<HostAndPort> lookups = new ArrayList<HostAndPort>();
+    private final List<Subscription> subscriptions = new ArrayList<Subscription>();
     private final int lookupIntervalSecs;
     private int maxLookupFailuresBeforeError;
     private int defaultMaxInFlight = 200;
@@ -41,7 +41,7 @@ public class Subscriber extends BasePubSub {
 
     public Subscriber(Client client, int lookupIntervalSecs, int maxLookupFailuresBeforeError, String... lookupHosts) {
         super(client);
-        checkArgument(lookupIntervalSecs > 0, "lookupIntervalSecs must be greater than zero");
+        checkArgument(lookupIntervalSecs > 0);
         this.lookupIntervalSecs = lookupIntervalSecs;
         this.maxLookupFailuresBeforeError = maxLookupFailuresBeforeError;
         client.scheduleAtFixedRate(new Runnable() {
@@ -65,6 +65,15 @@ public class Subscriber extends BasePubSub {
 
     public synchronized void subscribe(String topic, String channel, MessageHandler handler) {
         subscribe(topic, channel, defaultMaxInFlight, handler);
+    }
+
+    public synchronized void subscribe(String topic, String channel, final MessageDataHandler handler) {
+        subscribe(topic, channel, defaultMaxInFlight, new BackoffHandler(new MessageHandler() {
+            @Override
+            public void accept(Message msg) {
+                handler.accept(msg.getData());
+            }
+        }));
     }
 
     /**
@@ -107,22 +116,27 @@ public class Subscriber extends BasePubSub {
         Set<HostAndPort> nsqds = new HashSet<HostAndPort>();
         for (HostAndPort lookup : lookups) {
             String urlString = String.format("http://%s/lookup?topic=%s", lookup, topic);
+            BufferedReader in = null;
             try {
                 URL url = new URL(urlString);
                 HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                con.setConnectTimeout(30000);
+                con.setReadTimeout(30000);
                 if (con.getResponseCode() != 200) {
                     logger.debug("ignoring lookup resp:{} nsqlookupd:{} topic:{}", con.getResponseCode(), lookup, topic);
                     continue;
                 }
-                JsonNode root = client.getObjectMapper().readTree(con.getInputStream()); //don't need another buffer here, jackson buffers
-                JsonNode producers = root.get("data").get("producers");
-                for (int i = 0; i < producers.size(); i++) {
-                    JsonNode prod = producers.get(i);
-                    nsqds.add(HostAndPort.fromParts(prod.get("broadcast_address").asText(), prod.get("tcp_port").asInt()));
+                in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                LookupResponse resp = client.getGson().fromJson(in, LookupResponse.class);
+                if (resp.getData() != null) {
+                    resp = resp.getData(); //nsq before version 1.0 wrapped the response with status_code/data
                 }
-                con.getInputStream().close();
+                for (LookupResponse.Producer prod : resp.getProducers()) {
+                    nsqds.add(HostAndPort.fromParts(prod.getBroadcastAddress(), prod.getTcpPort()));
+                }
                 this.failures.remove(urlString);
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 Integer lookupFailureCount = this.failures.get(urlString);
                 if (lookupFailureCount == null) {
                     lookupFailureCount = 0;
@@ -138,8 +152,10 @@ public class Subscriber extends BasePubSub {
                             lookupFailureCount, lookup, topic, e);
                 }
             }
+            finally {
+                Util.closeQuietly(in);
+            }
         }
-        //logger.debug("lookup topic:{} result:{}", topic, nsqds);
         return nsqds;
     }
 
