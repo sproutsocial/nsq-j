@@ -4,7 +4,7 @@
 
     <groupId>com.sproutsocial</groupId>
     <artifactId>nsq-j</artifactId>
-    <version>0.8</version>
+    <version>0.9</version>
     <packaging>jar</packaging>
 
     <name>nsq-j</name>
@@ -87,7 +87,6 @@
                     <additionalparam>${doclint.opts} -notimestamp</additionalparam> <!-- doclint.opts in profile, required on java 8+ only -->
                 </configuration>
             </plugin>
-            <!-- remove distributionManagement and try this
             <plugin>
                 <groupId>org.sonatype.plugins</groupId>
                 <artifactId>nexus-staging-maven-plugin</artifactId>
@@ -99,7 +98,6 @@
                     <autoReleaseAfterClose>true</autoReleaseAfterClose>
                 </configuration>
             </plugin>
-            -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
@@ -208,12 +206,5 @@
         <developerConnection>scm:git:ssh://github.com:sproutsocial/nsq-j.git</developerConnection>
         <url>http://github.com/sproutsocial/nsq-j/tree/master</url>
     </scm>
-
-    <distributionManagement>
-        <repository>
-            <id>internal</id>
-            <url>http://nexus.int.sproutsocial.com:8081/nexus/content/repositories/releases/</url>
-        </repository>
-    </distributionManagement>
 
 </project>
