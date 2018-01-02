@@ -4,7 +4,7 @@ import java.util.List;
 
 class LookupResponse {
 
-    private LookupResponse data; //older versions wrap reponses in a "data" field
+    private LookupResponse data; //older versions wrap responses in a "data" field
     private List<Producer> producers;
 
     public LookupResponse getData() {

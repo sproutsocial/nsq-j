@@ -3,8 +3,6 @@ package com.sproutsocial.nsq;
 import net.jcip.annotations.GuardedBy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.xerial.snappy.SnappyFramedInputStream;
-import org.xerial.snappy.SnappyFramedOutputStream;
 
 import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
@@ -46,7 +44,7 @@ abstract class Connection extends BasePubSub implements Closeable {
     private static final ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
     private static final Set<String> nonFatalErrors = Collections.unmodifiableSet(new HashSet<String>(
             Arrays.asList("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED")));
-    private static String VERSION = "0.2.4";
+    private static String VERSION = "0.9";
     private static final String USER_AGENT = String.format("nsq-j/%s", VERSION);
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
@@ -166,9 +164,17 @@ abstract class Connection extends BasePubSub implements Closeable {
             if (serverConfig.getVersion().startsWith("0.")) {
                 throw new NSQException("snappy compression only supported on nsqd 1.0 and up");
             }
-            in = new DataInputStream(new SnappyFramedInputStream(sock.getInputStream()));
-            out = new DataOutputStream(new SnappyFramedOutputStream(sock.getOutputStream()));
-            readResponse();
+            try {
+                //hacky, use reflection to keep snappy depedency optional, it is finicky about versions
+                Constructor snappyInConstr = Class.forName("org.xerial.snappy.SnappyFramedInputStream").getConstructor(InputStream.class);
+                Constructor snappyOutConstr = Class.forName("org.xerial.snappy.SnappyFramedOutputStream").getConstructor(OutputStream.class);
+                in = new DataInputStream((InputStream) snappyInConstr.newInstance(sock.getInputStream()));
+                out = new DataOutputStream((OutputStream) snappyOutConstr.newInstance(sock.getOutputStream()));
+                readResponse();
+            }
+            catch (Exception e) {
+                throw new NSQException("snappy compression failed, is org.xerial.snappy:snappy-java available?", e);
+            }
         }
     }
 
