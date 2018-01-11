@@ -1,3 +1,5 @@
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.sproutsocial/nsq-j/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.sproutsocial/nsq-j)
+
 # nsq-j
 Java client for the [NSQ](http://nsq.io) realtime distributed messaging platform
 
@@ -28,11 +30,11 @@ publisher.publishBuffered("example_topic", data);
 ```
 Buffers messages to improve performance (to 16k or 300 milliseconds by default),
 
-`publisher.publish("example_topic", data)` publishes syncrhonously and returns
+`publisher.publish("example_topic", data)` publishes synchronously and returns
 after nsqd responds `OK`
 
 You can batch messages manually and publish them all at once with
-`publish(String topic, `List<byte[]>` messages)`
+`publish(String topic, List<byte[]> messages)`
 
 ## Subscribe
 ```java
