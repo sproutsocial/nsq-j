@@ -9,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -115,7 +116,7 @@ public class Subscriber extends BasePubSub {
     protected Set<HostAndPort> lookupTopic(String topic) {
         Set<HostAndPort> nsqds = new HashSet<HostAndPort>();
         for (HostAndPort lookup : lookups) {
-            String urlString = String.format("http://%s/lookup?topic=%s", lookup, topic);
+            String urlString = String.format("http://%s/lookup?topic=%s", lookup, URLEncoder.encode(topic, "UTF-8"));
             BufferedReader in = null;
             try {
                 URL url = new URL(urlString);
