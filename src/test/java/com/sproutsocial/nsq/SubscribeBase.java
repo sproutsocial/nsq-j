@@ -6,6 +6,7 @@ import org.junit.Before;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -29,7 +30,7 @@ public class SubscribeBase extends TestBase {
     }
 
     protected void post(String host, String topic, String command,  String body) throws IOException {
-        URL url = new URL(String.format("http://%s/%s?topic=%s", host, command, topic));
+        URL url = new URL(String.format("http://%s/%s?topic=%s", host, command, URLEncoder.encode(topic, "UTF-8")));
         HttpURLConnection con = (HttpURLConnection) url.openConnection();
         con.setRequestMethod("POST");
         con.setDoOutput(true);

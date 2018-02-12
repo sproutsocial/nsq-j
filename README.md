@@ -4,20 +4,20 @@
 Java client for the [NSQ](http://nsq.io) realtime distributed messaging platform
 
 ## Install
-The latest version is 0.9
+The latest version is 0.9.1
 
 Add a dependency using Maven
 ```xml
 <dependency>
   <groupId>com.sproutsocial</groupId>
   <artifactId>nsq-j</artifactId>
-  <version>0.9</version>
+  <version>0.9.1</version>
 </dependency>
 ```
 or Gradle
 ```
 dependencies {
-  compile 'com.sproutsocial:nsq-j:0.9'
+  compile 'com.sproutsocial:nsq-j:0.9.1'
 }
 ```
 
