@@ -16,7 +16,8 @@ public class SubscribeIT extends SubscribeBase {
     public void testSub() throws IOException {
         List<String> msgs = messages(300, 800);
 
-        String topic = "subtest";
+        //test with #ephemeral to test encoding. ephemeral topics enqueue until the first channel is created
+        String topic = "subtest#ephemeral";
         post("localhost:4151", topic, "pub", msgs.get(0));
 
         Util.sleepQuietly(1000);

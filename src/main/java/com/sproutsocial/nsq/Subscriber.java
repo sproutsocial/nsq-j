@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -116,9 +117,10 @@ public class Subscriber extends BasePubSub {
     protected Set<HostAndPort> lookupTopic(String topic) {
         Set<HostAndPort> nsqds = new HashSet<HostAndPort>();
         for (HostAndPort lookup : lookups) {
-            String urlString = String.format("http://%s/lookup?topic=%s", lookup, URLEncoder.encode(topic, "UTF-8"));
+            String urlString = null;
             BufferedReader in = null;
             try {
+                urlString = String.format("http://%s/lookup?topic=%s", lookup, URLEncoder.encode(topic, "UTF-8"));
                 URL url = new URL(urlString);
                 HttpURLConnection con = (HttpURLConnection) url.openConnection();
                 con.setConnectTimeout(30000);
@@ -136,6 +138,9 @@ public class Subscriber extends BasePubSub {
                     nsqds.add(HostAndPort.fromParts(prod.getBroadcastAddress(), prod.getTcpPort()));
                 }
                 this.failures.remove(urlString);
+            }
+            catch (UnsupportedEncodingException e) {
+                throw new RuntimeException(e);
             }
             catch (Exception e) {
                 Integer lookupFailureCount = this.failures.get(urlString);
