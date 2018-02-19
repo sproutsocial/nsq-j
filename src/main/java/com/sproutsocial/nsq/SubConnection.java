@@ -12,7 +12,7 @@ class SubConnection extends Connection {
     private final FailedMessageHandler failedMessageHandler;
     private final Subscription subscription;
     private final String topic;
-    private final int maxAttemps;
+    private final int maxAttempts;
     private final int maxFlushDelayMillis;
     private int inFlight = 0;
     private int maxInFlight = 0;
@@ -30,7 +30,7 @@ class SubConnection extends Connection {
         this.failedMessageHandler = subscriber.getFailedMessageHandler();
         this.subscription = subscription;
         this.topic = subscription.getTopic();
-        this.maxAttemps = subscriber.getMaxAttempts();
+        this.maxAttempts = subscriber.getMaxAttempts();
         this.maxFlushDelayMillis = subscriber.getMaxFlushDelayMillis();
 
         scheduleAtFixedRate(new Runnable() {
@@ -168,7 +168,7 @@ class SubConnection extends Connection {
         synchronized (this) {
             inFlight++;
         }
-        if (msg.getAttempts() >= maxAttemps) {
+        if (msg.getAttempts() >= maxAttempts) {
             failMessage(msg);
         }
         else {
