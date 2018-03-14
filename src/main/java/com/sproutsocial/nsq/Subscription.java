@@ -73,7 +73,7 @@ class Subscription extends BasePubSub {
         }
         List<SubConnection> activeCons = new ArrayList<SubConnection>();
         List<SubConnection> inactiveCons = new ArrayList<SubConnection>();
-        long minActiveTime = Util.clock() - subscriber.getLookupIntervalSecs() * 1000 * 30;
+        long minActiveTime = Util.clock() - (subscriber.getLookupIntervalSecs() + 40) * 1000;
         for (SubConnection con : copy(connectionMap.values())) {
             if (con.lastActionFlush < minActiveTime) {
                 inactiveCons.add(con);

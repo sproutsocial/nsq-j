@@ -60,12 +60,10 @@ abstract class Connection extends BasePubSub implements Closeable {
         Socket sock = new Socket();
         sock.setSoTimeout(30000);
         sock.connect(new InetSocketAddress(host.getHost(), host.getPort()), 30000);
-        in = new DataInputStream(new BufferedInputStream(sock.getInputStream()));
-        out = new DataOutputStream(new BufferedOutputStream(sock.getOutputStream()));
+        StreamPair streams = setStreams(sock.getInputStream(), sock.getOutputStream(), new StreamPair());
         out.write("  V2".getBytes(Util.US_ASCII));
 
         String response = connectCommand("IDENTIFY", client.getGson().toJson(config).getBytes(Util.UTF_8));
-
         ServerConfig serverConfig = client.getGson().fromJson(response, ServerConfig.class);
         logger.debug("serverConfig:{}", response);
         setConfig(serverConfig);
@@ -76,20 +74,15 @@ abstract class Connection extends BasePubSub implements Closeable {
 
         sock.setSoTimeout(heartbeatInterval + 5000);
 
-        wrapEncryption(serverConfig, sock);
-        wrapCompression(serverConfig, sock);
+        wrapEncryption(serverConfig, sock, streams);
+        wrapCompression(serverConfig, streams);
 
-        if (serverConfig.getAuthRequired() != null && serverConfig.getAuthRequired()) {
-            if (client.getAuthSecret() == null) {
-                throw new NSQException("nsqd requires authorization, call client.setAuthSecret before connecting");
-            }
-            if (!serverConfig.getTlsV1()) {
-                logger.warn("authorization used without encryption. authSecret sent in plain text");
-            }
-            String authResponse = connectCommand("AUTH", client.getAuthSecret());
-            logger.info("authorization response:{}", authResponse);
-            //no need to check response, future PUB/SUB may fail with E_UNAUTHORIZED
+        if (!streams.isBuffered) {
+            in = new DataInputStream(new BufferedInputStream(streams.baseIn));
+            out = new DataOutputStream(new BufferedOutputStream(streams.baseOut));
         }
+
+        sendAuthorization(serverConfig);
 
         scheduleAtFixedRate(new Runnable() {
             public void run() {
@@ -124,7 +117,7 @@ abstract class Connection extends BasePubSub implements Closeable {
         config.setFeatureNegotiation(true);
     }
 
-    private void wrapEncryption(ServerConfig serverConfig, Socket sock) throws IOException {
+    private void wrapEncryption(ServerConfig serverConfig, Socket baseSocket, StreamPair streams) throws IOException {
         if (!serverConfig.getTlsV1()) {
             return;
         }
@@ -133,31 +126,30 @@ abstract class Connection extends BasePubSub implements Closeable {
         if (sockFactory == null) {
             sockFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
         }
-        sock = sockFactory.createSocket(sock, sock.getInetAddress().getHostAddress(), sock.getPort(), true);
-        in = new DataInputStream(new BufferedInputStream(sock.getInputStream()));
-        out = new DataOutputStream(new BufferedOutputStream(sock.getOutputStream()));
+        Socket sslSocket = sockFactory.createSocket(baseSocket, baseSocket.getInetAddress().getHostAddress(), baseSocket.getPort(), true);
+        setStreams(sslSocket.getInputStream(), sslSocket.getOutputStream(), streams);
         readResponse();
     }
 
-    private void wrapCompression(ServerConfig serverConfig, Socket sock) throws IOException {
+    private void wrapCompression(ServerConfig serverConfig, StreamPair streams) throws IOException {
         if (serverConfig.getDeflate()) {
             logger.debug("adding deflate compression");
-            in = new DataInputStream(new InflaterInputStream(new BufferedInputStream(sock.getInputStream()),
-                    new Inflater(true), 32768));
-            //TODO select compression level
-            Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true);
             try {
+                InflaterInputStream inflateIn = new InflaterInputStream(streams.baseIn, new Inflater(true), 32768);
+                Deflater deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true);
                 //deflate only works on java7 (syncFlush not exposed on java6), use reflection to see if it is available
                 // http://bugs.java.com/bugdatabase/view_bug.do?bug_id=4206909
                 Constructor<DeflaterOutputStream> constr = DeflaterOutputStream.class.getConstructor(
                         OutputStream.class, Deflater.class, int.class, boolean.class);
-                DeflaterOutputStream deflaterOut = constr.newInstance(sock.getOutputStream(), deflater, 32768, true);
-                out = new DataOutputStream(deflaterOut);
+                DeflaterOutputStream deflateOut = constr.newInstance(streams.baseOut, deflater, 32768, true);
+
+                setStreams(inflateIn, deflateOut, streams);
+                streams.isBuffered = true;
+                readResponse();
             }
             catch (Exception e) {
                 throw new NSQException("deflate compression only supported on java7 and up");
             }
-            readResponse();
         }
         else if (serverConfig.getSnappy()) {
             logger.debug("adding snappy compression");
@@ -165,16 +157,31 @@ abstract class Connection extends BasePubSub implements Closeable {
                 throw new NSQException("snappy compression only supported on nsqd 1.0 and up");
             }
             try {
-                //hacky, use reflection to keep snappy depedency optional, it is finicky about versions
+                //hacky, use reflection to keep snappy dependency optional, it is finicky about versions
                 Constructor snappyInConstr = Class.forName("org.xerial.snappy.SnappyFramedInputStream").getConstructor(InputStream.class);
                 Constructor snappyOutConstr = Class.forName("org.xerial.snappy.SnappyFramedOutputStream").getConstructor(OutputStream.class);
-                in = new DataInputStream((InputStream) snappyInConstr.newInstance(sock.getInputStream()));
-                out = new DataOutputStream((OutputStream) snappyOutConstr.newInstance(sock.getOutputStream()));
+                setStreams((InputStream) snappyInConstr.newInstance(streams.baseIn),
+                        (OutputStream) snappyOutConstr.newInstance(streams.baseOut), streams);
+                //streams.isBuffered = true; //not sure if additional buffers help or hurt, try using them for now
                 readResponse();
             }
             catch (Exception e) {
                 throw new NSQException("snappy compression failed, is org.xerial.snappy:snappy-java available?", e);
             }
+        }
+    }
+
+    private void sendAuthorization(ServerConfig serverConfig) throws IOException {
+        if (serverConfig.getAuthRequired() != null && serverConfig.getAuthRequired()) {
+            if (client.getAuthSecret() == null) {
+                throw new NSQException("nsqd requires authorization, call client.setAuthSecret before connecting");
+            }
+            if (!serverConfig.getTlsV1()) {
+                logger.warn("authorization used without encryption. authSecret sent in plain text");
+            }
+            String authResponse = connectCommand("AUTH", client.getAuthSecret());
+            logger.info("authorization response:{}", authResponse);
+            //no need to check response, future PUB/SUB may fail with E_UNAUTHORIZED
         }
     }
 
@@ -197,12 +204,12 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     @GuardedBy("this")
     protected void writeCommand(String cmd, Object param1, Object param2) throws IOException {
-        out.write(String.format("%s %s %s\n", cmd, param1, param2).getBytes(Util.US_ASCII));
+        out.write((cmd + " " + param1 + " " + param2 + "\n").getBytes(Util.US_ASCII));
     }
 
     @GuardedBy("this")
     protected void writeCommand(String cmd, Object param) throws IOException {
-        out.write(String.format("%s %s\n", cmd, param).getBytes(Util.US_ASCII));
+        out.write((cmd + " " +  param + "\n").getBytes(Util.US_ASCII));
     }
 
     @GuardedBy("this")
@@ -349,6 +356,21 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     public synchronized int getMaxRdyCount() {
         return maxRdyCount;
+    }
+
+    //helpers used during initialization only
+    private static class StreamPair {
+        private InputStream baseIn;
+        private OutputStream baseOut;
+        boolean isBuffered = false;
+    }
+
+    private StreamPair setStreams(InputStream baseIn, OutputStream baseOut, StreamPair streams) {
+        streams.baseIn = baseIn;
+        streams.baseOut = baseOut;
+        in = new DataInputStream(baseIn);
+        out = new DataOutputStream(baseOut);
+        return streams;
     }
 
 }
