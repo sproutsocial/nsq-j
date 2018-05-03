@@ -57,8 +57,8 @@ public class Publisher extends BasePubSub {
             connect(nsqd);
         }
         else if (isFailover && Util.clock() - failoverStart > failoverDurationSecs * 1000) {
-            connect(nsqd);
             isFailover = false;
+            connect(nsqd);
             logger.info("using primary nsqd");
         }
     }
@@ -145,6 +145,7 @@ public class Publisher extends BasePubSub {
         catch (Exception e) {
             Util.closeQuietly(con);
             con = null;
+            isFailover = false;
             throw new NSQException("publish failed", e);
         }
     }
