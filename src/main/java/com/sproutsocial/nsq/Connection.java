@@ -44,8 +44,6 @@ abstract class Connection extends BasePubSub implements Closeable {
     private static final ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
     private static final Set<String> nonFatalErrors = Collections.unmodifiableSet(new HashSet<String>(
             Arrays.asList("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED")));
-    private static String VERSION = "0.9";
-    private static final String USER_AGENT = String.format("nsq-j/%s", VERSION);
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
@@ -113,7 +111,6 @@ abstract class Connection extends BasePubSub implements Closeable {
                 config.setHostname(pidHost.substring(pos + 1));
             }
         }
-        config.setUserAgent(USER_AGENT);
         config.setFeatureNegotiation(true);
     }
 
