@@ -89,7 +89,7 @@ public class Publisher extends BasePubSub {
             con.publish(topic, data);
         }
         catch (Exception e) {
-            logger.error("publish error with:{} {}", isFailover ? failoverNsqd : nsqd, e);
+            logger.error("publish error with:{}", isFailover ? failoverNsqd : nsqd, e);
             publishFailover(topic, data);
         }
     }
@@ -119,7 +119,7 @@ public class Publisher extends BasePubSub {
             con.publish(topic, dataList);
         }
         catch (Exception e) {
-            logger.error("publish error with:{} {}", isFailover ? failoverNsqd : nsqd, e);
+            logger.error("publish error with:{}", isFailover ? failoverNsqd : nsqd, e);
             for (byte[] data : dataList) {
                 publishFailover(topic, data);
             }
