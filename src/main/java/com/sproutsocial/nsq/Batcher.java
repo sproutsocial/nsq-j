@@ -17,6 +17,7 @@ class Batcher {
     private final String topic;
     private final int maxSize;
     private final int maxDelayMillis;
+    private final boolean asyncPublish;
     private final ScheduledExecutorService executor;
     private int size;
     private List<byte[]> batch = new ArrayList<byte[]>();
@@ -24,17 +25,22 @@ class Batcher {
 
     private static final Logger logger = LoggerFactory.getLogger(Batcher.class);
 
-    public Batcher(Publisher publisher, String topic, int maxSizeBytes, int maxDelayMillis) {
+    public Batcher(Publisher publisher, String topic, int maxSizeBytes, int maxDelayMillis, boolean asyncPublish) {
         this.publisher = publisher;
         this.topic = topic;
         this.maxSize = maxSizeBytes;
         this.maxDelayMillis = maxDelayMillis;
         this.executor = publisher.getBatchExecutor();
+        this.asyncPublish = asyncPublish;
         checkNotNull(publisher);
         checkNotNull(topic);
         checkArgument(maxDelayMillis > 5);
         checkArgument(maxDelayMillis <= 60000);
         checkArgument(maxSize > 100);
+    }
+
+    public Batcher(Publisher publisher, String topic, int maxSizeBytes, int maxDelayMillis) {
+        this(publisher, topic, maxSizeBytes, maxDelayMillis, false);
     }
 
     public void publish(byte[] msg) {
@@ -87,6 +93,22 @@ class Batcher {
     }
 
     void sendBatch() {
+        if (asyncPublish) {
+            sendBatchAsync();
+        } else {
+            sendBatchSync();
+        }
+    }
+
+    private void sendBatchAsync() {
+        executor.submit(new Runnable() {
+                public void run() {
+                    sendBatchSync();
+                }
+            });
+    }
+
+    private void sendBatchSync() {
         List<byte[]> toSend = null;
         synchronized (this) {
             if (!batch.isEmpty()) {

@@ -163,11 +163,15 @@ public class Publisher extends BasePubSub {
     }
 
     public synchronized void setBatchConfig(String topic, int maxSizeBytes, int maxDelayMillis) {
+        setBatchConfig(topic, maxSizeBytes, maxDelayMillis, false);
+    }
+
+    public synchronized void setBatchConfig(String topic, int maxSizeBytes, int maxDelayMillis, boolean asyncPublish) {
         Batcher batcher = batchers.get(topic);
         if (batcher != null) {
             batcher.sendBatch();
         }
-        batcher = new Batcher(this, topic, maxSizeBytes, maxDelayMillis);
+        batcher = new Batcher(this, topic, maxSizeBytes, maxDelayMillis, asyncPublish);
         batchers.put(topic, batcher);
     }
 
