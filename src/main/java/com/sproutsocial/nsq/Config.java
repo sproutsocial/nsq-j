@@ -20,6 +20,8 @@ public class Config {
     private Integer sampleRate;
     private String userAgent = "nsq-j/0.9";
     private Integer msgTimeout;
+    private Integer socketReadTimeoutMillis = 30000;
+    private Integer socketConnectTimeoutMillis = 30000;
 
     //region accessors
     public String getClientId() {
@@ -125,6 +127,22 @@ public class Config {
     public void setMsgTimeout(Integer msgTimeout) {
         this.msgTimeout = msgTimeout;
     }
+
+    public Integer getSocketReadTimeoutMillis() {
+        return socketReadTimeoutMillis;
+    }
+
+    public void setSocketReadTimeoutMillis(Integer socketReadTimeoutMillis) {
+        this.socketReadTimeoutMillis = socketReadTimeoutMillis;
+    }
+
+    public Integer getSocketConnectTimeoutMillis() {
+        return socketConnectTimeoutMillis;
+    }
+
+    public void setSocketConnectTimeoutMillis(Integer socketConnectTimeoutMillis) {
+        this.socketConnectTimeoutMillis = socketConnectTimeoutMillis;
+    }
     //endregion
 
     @Override
@@ -143,6 +161,8 @@ public class Config {
                 ", sampleRate=" + sampleRate +
                 ", userAgent='" + userAgent + '\'' +
                 ", msgTimeout=" + msgTimeout +
+                ", socketReadTimeoutMillis=" + socketReadTimeoutMillis +
+                ", socketConnectTimeoutMillis=" + socketConnectTimeoutMillis +
                 '}';
     }
 }

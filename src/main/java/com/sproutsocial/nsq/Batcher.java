@@ -100,6 +100,10 @@ class Batcher {
         }
     }
 
+    /**
+     * If you're going to use async publishing, make sure you set aggressive timeouts, to avoid too much
+     * stalls and lock contention.
+     */
     private void sendBatchAsync() {
         executor.submit(new Runnable() {
                 public void run() {
