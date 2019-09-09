@@ -101,8 +101,8 @@ class Batcher {
     }
 
     /**
-     * If you're going to use async publishing, make sure you set aggressive timeouts, to avoid too much
-     * stalls and lock contention.
+     * If you want asynch batching to never block message publishing, make sure you set aggressive socket timeouts.
+     * Otherwise you'll get stalls when there are batches outstanding.
      */
     private void sendBatchAsync() {
         executor.submit(new Runnable() {
