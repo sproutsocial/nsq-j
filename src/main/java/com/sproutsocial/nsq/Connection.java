@@ -56,8 +56,8 @@ abstract class Connection extends BasePubSub implements Closeable {
     public synchronized void connect(Config config) throws IOException {
         addClientConfig(config);
         Socket sock = new Socket();
-        sock.setSoTimeout(config.getSocketReadTimeoutMillis());
-        sock.connect(new InetSocketAddress(host.getHost(), host.getPort()), config.getSocketConnectTimeoutMillis());
+        sock.setSoTimeout(client.getSocketReadTimeoutMillis());
+        sock.connect(new InetSocketAddress(host.getHost(), host.getPort()), client.getSocketConnectTimeoutMillis());
         StreamPair streams = setStreams(sock.getInputStream(), sock.getOutputStream(), new StreamPair());
         out.write("  V2".getBytes(Util.US_ASCII));
 

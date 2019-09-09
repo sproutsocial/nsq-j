@@ -28,6 +28,8 @@ public class Client {
     private ExecutorService handlerExecutor;
     private SSLSocketFactory sslSocketFactory;
     private byte[] authSecret;
+    private int socketReadTimeoutMillis = 30000;
+    private int socketConnectTimeoutMillis = 30000;
 
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     private static final Client defaultClient = new Client();
@@ -131,6 +133,22 @@ public class Client {
 
     public synchronized void setAuthSecret(String authSecret) {
         this.authSecret = authSecret.getBytes();
+    }
+
+    public synchronized int getSocketReadTimeoutMillis() {
+        return socketReadTimeoutMillis;
+    }
+
+    public synchronized void setSocketReadTimeoutMillis(int socketReadTimeoutMillis) {
+        this.socketReadTimeoutMillis = socketReadTimeoutMillis;
+    }
+
+    public synchronized int getSocketConnectTimeoutMillis() {
+        return socketConnectTimeoutMillis;
+    }
+
+    public synchronized void setSocketConnectTimeoutMillis(int socketConnectTimeoutMillis) {
+        this.socketConnectTimeoutMillis = socketConnectTimeoutMillis;
     }
 
     //--------------------------
