@@ -6,6 +6,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
+/**
+ * Note, the constructor registers a repeating task in the scheduler. The caller is responsible for invoking
+ * the close method when they are done with the object.
+ */
 class SubConnection extends Connection {
 
     private final MessageHandler handler;

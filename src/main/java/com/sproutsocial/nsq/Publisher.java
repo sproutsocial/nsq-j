@@ -69,7 +69,14 @@ public class Publisher extends BasePubSub {
             con.close();
         }
         con = new PubConnection(client, host, this);
-        con.connect(config);
+        try {
+            con.connect(config);
+        }
+        catch(IOException e) {
+            con.close();
+            con = null;
+            throw e;
+        }
         logger.info("publisher connected:{}", host);
     }
 
