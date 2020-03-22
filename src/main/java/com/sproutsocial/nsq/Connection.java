@@ -232,7 +232,9 @@ abstract class Connection extends BasePubSub implements Closeable {
         }
         else if (frameType == 1) {  //error
             String error = readAscii(size - 4);
-            if (nonFatalErrors.contains(error)) {
+            int index = error.indexOf(" ");
+            String errorCode = index == -1 ? error : error.substring(0, index);
+            if (nonFatalErrors.contains(errorCode)) {
                 logger.warn("non fatal nsqd error:{} probably due to message timeout", error);
             }
             else {
