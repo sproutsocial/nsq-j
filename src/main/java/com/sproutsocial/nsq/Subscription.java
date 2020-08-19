@@ -53,13 +53,17 @@ class Subscription extends BasePubSub {
         }
         for (HostAndPort activeHost : activeHosts) {
             if (!connectionMap.containsKey(activeHost)) {
+                SubConnection con = null;
                 try {
                     logger.info("adding new connection:{} topic:{}", activeHost, topic);
-                    SubConnection con = new SubConnection(client, activeHost, this);
+                    con = new SubConnection(client, activeHost, this);
                     con.connect(subscriber.getConfig());
                     connectionMap.put(activeHost, con);
                 }
                 catch (Exception e) {
+                    if(con != null) {
+                        con.close();
+                    }
                     logger.error("error connecting to:{}", activeHost, e);
                 }
             }
