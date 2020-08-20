@@ -4,7 +4,7 @@
 
     <groupId>com.sproutsocial</groupId>
     <artifactId>nsq-j</artifactId>
-    <version>0.9.4</version>
+    <version>1.0</version>
     <packaging>jar</packaging>
 
     <name>nsq-j</name>
@@ -98,6 +98,7 @@
                     <autoReleaseAfterClose>true</autoReleaseAfterClose>
                 </configuration>
             </plugin>
+            <!-- uncomment when uploading to maven central
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-gpg-plugin</artifactId>
@@ -112,6 +113,7 @@
                     </execution>
                 </executions>
             </plugin>
+            -->
         </plugins>
     </build>
 

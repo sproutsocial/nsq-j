@@ -10,13 +10,13 @@ Add a dependency using Maven
 <dependency>
   <groupId>com.sproutsocial</groupId>
   <artifactId>nsq-j</artifactId>
-  <version>0.9.4</version>
+  <version>1.0</version>
 </dependency>
 ```
 or Gradle
 ```
 dependencies {
-  compile 'com.sproutsocial:nsq-j:0.9.4'
+  compile 'com.sproutsocial:nsq-j:1.0'
 }
 ```
 

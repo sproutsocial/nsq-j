@@ -196,6 +196,9 @@ public class Publisher extends BasePubSub {
         if (batchExecutor != null) {
             Util.shutdownAndAwaitTermination(batchExecutor, 40, TimeUnit.MILLISECONDS);
         }
+        if (client.isLonePublisher(this)) { // convenience, prevents needing to call client.stop() to stop all threads
+            Util.shutdownAndAwaitTermination(client.getSchedExecutor(), 40, TimeUnit.MILLISECONDS);
+        }
     }
 
     public synchronized int getFailoverDurationSecs() {
