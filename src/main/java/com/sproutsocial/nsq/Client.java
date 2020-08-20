@@ -194,4 +194,8 @@ public class Client {
         return gson;
     }
 
+    synchronized boolean isLonePublisher(Publisher publisher) {
+        return subscribers.isEmpty() && publishers.size() == 1 && publishers.iterator().next() == publisher;
+    }
+
 }
