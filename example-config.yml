@@ -1,0 +1,10 @@
+vault:
+  type: token
+  token: root
+  addr: http://localhost:8200
+  engineVersion: 2
+
+tokenValidation:
+  serviceTokenPath: secret/services/nsq/service-tokens/
+  userTokenPath: secret/services/nsq/user-tokens/
+  tokenTTL: 3600
