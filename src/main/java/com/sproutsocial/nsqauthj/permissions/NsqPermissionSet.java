@@ -1,7 +1,12 @@
 package com.sproutsocial.nsqauthj.permissions;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.sproutsocial.nsqauthj.tokens.NsqToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -13,6 +18,8 @@ This permission set is evaluated by NSQ when determining permissions for a conne
 As such, the attribute names here cannot be changed.
  */
 public class NsqPermissionSet {
+    private static final Logger auditLogger = LoggerFactory.getLogger("NsqPermissionAudit");
+
     public static class Authorization {
         @JsonProperty
         private String topic;
@@ -76,11 +83,18 @@ public class NsqPermissionSet {
             ));
         }
 
-        return new NsqPermissionSet(
+        NsqPermissionSet nsqPermissionSet = new NsqPermissionSet(
                 authorizations,
                 "",
                 token.getUsernname(),
                 token.getTtl()
         );
+        ObjectWriter writer = new ObjectMapper().writer();
+        try {
+            auditLogger.info("NSQ Token: " + writer.writeValueAsString(token) + " Permission Set: " + writer.writeValueAsString(nsqPermissionSet));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return nsqPermissionSet;
     }
 }

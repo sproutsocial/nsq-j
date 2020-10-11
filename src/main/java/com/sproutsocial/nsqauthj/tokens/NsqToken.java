@@ -23,7 +23,11 @@ public class NsqToken {
     @JsonProperty
     private String usernname;
 
+    @JsonProperty
     private int ttl;
+
+    @JsonProperty
+    private String remoteAddr;
 
     public static enum TYPE {
         USER,
@@ -31,14 +35,15 @@ public class NsqToken {
         PUBLISH_ONLY
     }
 
-    public NsqToken(List<String> topics, String usernname, TYPE type, int ttl) {
+    public NsqToken(List<String> topics, String usernname, TYPE type, int ttl, String remoteAddr) {
         this.topics = topics;
         this.usernname = usernname;
         this.ttl = ttl;
         this.type = type;
+        this.remoteAddr = remoteAddr;
     }
 
-    public static Optional<NsqToken> fromVaultResponse(LogicalResponse response, TYPE type, int ttl) {
+    public static Optional<NsqToken> fromVaultResponse(LogicalResponse response, TYPE type, int ttl, String remoteAddr) {
         Map<String, String> data = response.getData();
         if (!data.containsKey("username") || !data.containsKey("topics")) {
             // Log a warning here
@@ -47,16 +52,17 @@ public class NsqToken {
 
         List<String> topics = Stream.of(data.get("topics").split(",", -1)).collect(Collectors.toList());
         String username = data.get("username");
-        return Optional.of(new NsqToken(topics, username, type, ttl));
+        return Optional.of(new NsqToken(topics, username, type, ttl, remoteAddr));
     }
 
     public static Optional<NsqToken> generatePublishOnlyToken(int ttl, String ipaddress) {
+        // User the ipaddress as the username when generating a publish only token
         return Optional.of(new NsqToken(
                 Arrays.asList(".*"),
                 ipaddress,
                 TYPE.PUBLISH_ONLY,
-                ttl
-        ));
+                ttl,
+                ipaddress));
     }
 
     public List<String> getTopics() {

@@ -6,12 +6,13 @@ import com.bettercloud.vault.response.LogicalResponse;
 import com.sproutsocial.nsqauthj.NsqAuthJConfiguration;
 import com.sproutsocial.nsqauthj.configuration.TokenValidationFactory;
 import com.sproutsocial.nsqauthj.tokens.NsqToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import javax.swing.text.html.Option;
-import java.util.Arrays;
 import java.util.Optional;
 
 public class VaultTokenValidator {
+    private static final Logger logger = LoggerFactory.getLogger(VaultTokenValidator.class);
     private final Vault vault;
 
     private final String userTokenPath;
@@ -36,7 +37,7 @@ public class VaultTokenValidator {
     }
 
 
-    public Optional<NsqToken> validateTokenAtPath(String token, String path, NsqToken.TYPE type) {
+    public Optional<NsqToken> validateTokenAtPath(String token, String path, NsqToken.TYPE type, String remoteAddr) {
         LogicalResponse response = null;
         try {
             response = this.vault.logical().read(path + token);
@@ -44,15 +45,15 @@ public class VaultTokenValidator {
             e.printStackTrace();
             return Optional.empty();
         }
-        return NsqToken.fromVaultResponse(response, type, ttl);
+        return NsqToken.fromVaultResponse(response, type, ttl, remoteAddr);
     }
 
-    public Optional<NsqToken> validateUserToken(String token) {
-        return validateTokenAtPath(token, userTokenPath, NsqToken.TYPE.USER);
+    public Optional<NsqToken> validateUserToken(String token, String remoteAddr) {
+        return validateTokenAtPath(token, userTokenPath, NsqToken.TYPE.USER, remoteAddr);
     }
 
-    public Optional<NsqToken> validateServiceToken(String token) {
-        return validateTokenAtPath(token, serviceTokenPath, NsqToken.TYPE.SERVICE);
+    public Optional<NsqToken> validateServiceToken(String token, String remoteAddr) {
+        return validateTokenAtPath(token, serviceTokenPath, NsqToken.TYPE.SERVICE, remoteAddr);
     }
 
     public Optional<NsqToken> validateToken(String token, String remoteAddr) {
@@ -60,10 +61,10 @@ public class VaultTokenValidator {
         Optional<NsqToken> nsqToken;
 
         // It is far more likely we are dealing with a Service Token so check that first
-        nsqToken = validateServiceToken(token);
+        nsqToken = validateServiceToken(token, remoteAddr);
 
         if (!nsqToken.isPresent()) {
-            nsqToken = validateUserToken(token);
+            nsqToken = validateUserToken(token, remoteAddr);
         }
 
         // If either is valid, we still want to allow publishing!
