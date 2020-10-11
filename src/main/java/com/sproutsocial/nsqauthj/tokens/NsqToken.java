@@ -10,6 +10,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/*
+Represents a username and topic combination stored in Vault.
+ */
 public class NsqToken {
     @JsonProperty
     private final TYPE type;
@@ -47,10 +50,10 @@ public class NsqToken {
         return Optional.of(new NsqToken(topics, username, type, ttl));
     }
 
-    public static Optional<NsqToken> generatePublishOnlyToken(int ttl) {
+    public static Optional<NsqToken> generatePublishOnlyToken(int ttl, String ipaddress) {
         return Optional.of(new NsqToken(
                 Arrays.asList(".*"),
-                "TODO GET IP",
+                ipaddress,
                 TYPE.PUBLISH_ONLY,
                 ttl
         ));

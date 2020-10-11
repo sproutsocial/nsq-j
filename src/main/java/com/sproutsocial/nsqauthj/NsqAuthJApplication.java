@@ -1,12 +1,9 @@
 package com.sproutsocial.nsqauthj;
 
 import com.google.inject.Injector;
-import com.google.inject.spi.MembersInjectorLookup;
 import com.hubspot.dropwizard.guicier.GuiceBundle;
 import com.sproutsocial.configuration.dropwizard.DropwizardConfigCommonsFactoryFactory;
-import com.sproutsocial.nsqauthj.configuration.TokenValidationFactory;
 import com.sproutsocial.nsqauthj.guice.TokenValidatorModule;
-import com.sproutsocial.nsqauthj.guice.VaultModule;
 import com.sproutsocial.nsqauthj.resources.AuthResource;
 import io.dropwizard.Application;
 import io.dropwizard.setup.Bootstrap;
@@ -34,7 +31,6 @@ public class NsqAuthJApplication extends Application<NsqAuthJConfiguration> {
                 GuiceBundle.defaultBuilder(NsqAuthJConfiguration.class)
                         .enableGuiceEnforcer(false)
                         .modules(
-                                new VaultModule(),
                                 new TokenValidatorModule()
                         )
                         .build();
@@ -44,8 +40,6 @@ public class NsqAuthJApplication extends Application<NsqAuthJConfiguration> {
 
     @Override
     public void run(NsqAuthJConfiguration config, Environment env) {
-        // Setup other stuff, by this time, your config object should be fully built
-
         Injector injector = guiceBundle.getInjector();
 
         env.jersey().register(injector.getInstance(AuthResource.class));

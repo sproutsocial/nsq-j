@@ -6,11 +6,13 @@ import com.sproutsocial.nsqauthj.tokens.NsqToken;
 import com.sproutsocial.nsqauthj.validators.VaultTokenValidator;
 import org.hibernate.validator.constraints.NotEmpty;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.validation.constraints.NotNull;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.Optional;
@@ -30,8 +32,10 @@ public class AuthResource {
     @GET
     @Path("")
     @Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_JSON})
-    public Response validateWithVault(@QueryParam("token") @NotEmpty @NotNull String tokenString) {
-        Optional<NsqToken> nsqToken = vaultTokenValidator.validateToken(tokenString);
+    public Response validateWithVault(
+            @QueryParam("secret") @NotEmpty @NotNull String tokenString,
+            @Context HttpServletRequest request) {
+        Optional<NsqToken> nsqToken = vaultTokenValidator.validateToken(tokenString, request.getRemoteAddr());
         return Response.ok().entity(NsqPermissionSet.fromNsqToken(nsqToken.get())).build();
     }
 }

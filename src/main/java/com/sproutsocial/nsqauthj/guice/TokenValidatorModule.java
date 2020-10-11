@@ -19,7 +19,6 @@ public class TokenValidatorModule extends DropwizardAwareModule<NsqAuthJConfigur
     public VaultTokenValidator provideTokenValidator() throws Exception {
         return getConfiguration().getTokenValidationFactory().build(
                 getConfiguration().getVaultClientFactory().build()
-
         );
     }
 }

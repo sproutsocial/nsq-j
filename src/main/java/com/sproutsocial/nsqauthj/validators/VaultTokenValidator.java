@@ -55,7 +55,7 @@ public class VaultTokenValidator {
         return validateTokenAtPath(token, serviceTokenPath, NsqToken.TYPE.SERVICE);
     }
 
-    public Optional<NsqToken> validateToken(String token) {
+    public Optional<NsqToken> validateToken(String token, String remoteAddr) {
         // Check if this is a valid user token
         Optional<NsqToken> nsqToken;
 
@@ -69,7 +69,7 @@ public class VaultTokenValidator {
         // If either is valid, we still want to allow publishing!
         // This is important as if Vault is having issues, we must still be able to publish messages!
         if (!nsqToken.isPresent()) {
-           nsqToken = NsqToken.generatePublishOnlyToken(ttl);
+           nsqToken = NsqToken.generatePublishOnlyToken(ttl, remoteAddr);
         }
         return nsqToken;
     }
