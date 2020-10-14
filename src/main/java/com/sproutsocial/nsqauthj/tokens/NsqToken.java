@@ -2,6 +2,8 @@ package com.sproutsocial.nsqauthj.tokens;
 
 import com.bettercloud.vault.response.LogicalResponse;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -14,6 +16,9 @@ import java.util.stream.Stream;
 Represents a username and topic combination stored in Vault.
  */
 public class NsqToken {
+
+    private static Logger logger = LoggerFactory.getLogger(NsqToken.class);
+
     @JsonProperty
     private final TYPE type;
 
@@ -43,10 +48,11 @@ public class NsqToken {
         this.remoteAddr = remoteAddr;
     }
 
-    public static Optional<NsqToken> fromVaultResponse(LogicalResponse response, TYPE type, int ttl, String remoteAddr) {
+    public static Optional<NsqToken> fromVaultResponse(LogicalResponse response, String token, TYPE type, int ttl, String remoteAddr) {
         Map<String, String> data = response.getData();
         if (!data.containsKey("username") || !data.containsKey("topics")) {
             // Log a warning here
+            logger.warn("Vault response for Token " + token + " missing username and/or topics!" );
             return Optional.empty();
         }
 

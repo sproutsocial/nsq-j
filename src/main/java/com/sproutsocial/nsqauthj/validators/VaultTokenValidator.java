@@ -45,7 +45,7 @@ public class VaultTokenValidator {
             e.printStackTrace();
             return Optional.empty();
         }
-        return NsqToken.fromVaultResponse(response, type, ttl, remoteAddr);
+        return NsqToken.fromVaultResponse(response, token, type, ttl, remoteAddr);
     }
 
     public Optional<NsqToken> validateUserToken(String token, String remoteAddr) {
