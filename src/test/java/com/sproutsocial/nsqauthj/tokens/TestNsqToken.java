@@ -1,21 +1,21 @@
 package com.sproutsocial.nsqauthj.tokens;
 
 import com.bettercloud.vault.response.LogicalResponse;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-import static org.junit.jupiter.api.Assertions.*;
-
-class NsqTokenTest {
+public class TestNsqToken {
 
     @Test
-    void fromVaultResponseNoUsername() {
+    public void fromVaultResponseNoUsername() {
         LogicalResponse response = mock(LogicalResponse.class);
         Map<String, String> responseData = new HashMap<>();
         responseData.put("topics", ".*");
@@ -33,7 +33,7 @@ class NsqTokenTest {
     }
 
     @Test
-    void fromVaultNoTopics() {
+    public void fromVaultNoTopics() {
         LogicalResponse response = mock(LogicalResponse.class);
         Map<String, String> responseData = new HashMap<>();
         responseData.put("username", "some.developer");
@@ -52,7 +52,7 @@ class NsqTokenTest {
     }
 
     @Test
-    void fromVaultValidData() {
+    public void fromVaultValidData() {
         LogicalResponse response = mock(LogicalResponse.class);
         Map<String, String> responseData = new HashMap<>();
         responseData.put("username", "some.developer");
@@ -77,7 +77,7 @@ class NsqTokenTest {
     }
 
     @Test
-    void generatePublishOnlyToken() {
+    public void generatePublishOnlyToken() {
         Optional<NsqToken> optionalNsqToken = NsqToken.generatePublishOnlyToken(500, "123.123.123.123");
         assertTrue(optionalNsqToken.isPresent());
         NsqToken token = optionalNsqToken.get();

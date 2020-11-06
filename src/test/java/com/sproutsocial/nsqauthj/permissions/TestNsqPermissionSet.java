@@ -9,10 +9,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.assertEquals;
 
 @RunWith(Parameterized.class)
-public class NsqPermissionSetTest {
+public class TestNsqPermissionSet {
 
     @Parameterized.Parameters
     public static Collection<Object[]> data() {

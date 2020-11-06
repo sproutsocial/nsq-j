@@ -1,24 +1,26 @@
 package com.sproutsocial.nsqauthj.validators;
 
 import com.bettercloud.vault.Vault;
-import com.bettercloud.vault.VaultConfig;
 import com.bettercloud.vault.VaultException;
 import com.bettercloud.vault.api.Logical;
 import com.bettercloud.vault.response.LogicalResponse;
 import com.sproutsocial.nsqauthj.tokens.NsqToken;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
+import org.junit.Before;
+import org.junit.Test;
 import org.mockito.Mockito;
-import org.omg.PortableInterceptor.USER_EXCEPTION;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static junit.framework.TestCase.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
-class VaultTokenValidatorTest {
+public class TestVaultTokenValidator {
 
     private Vault mockVault;
     private VaultTokenValidator vaultTokenValidator;
@@ -28,8 +30,8 @@ class VaultTokenValidatorTest {
     private final String serviceTokenPath ="secrets/nsq/service-tokens/";
     private final String userTokenPath ="secrets/nsq/user-tokens/";
 
-    @BeforeEach
-    void setUp() {
+    @Before
+    public void setUp() {
         mockVault = mock(Vault.class);
         vaultTokenValidator = Mockito.spy(new VaultTokenValidator(
                 mockVault,
@@ -40,7 +42,7 @@ class VaultTokenValidatorTest {
     }
 
     @Test
-    void validateTokenAtPathError() throws VaultException {
+    public void validateTokenAtPathError() throws VaultException {
         Logical logicalMock = mock(Logical.class);
         when(mockVault.logical()).thenReturn(logicalMock);
         given(mockVault.logical().read(userTokenPath + token)).willAnswer(invocationOnMock -> { throw new VaultException("Garbage");});
@@ -51,7 +53,7 @@ class VaultTokenValidatorTest {
     }
 
     @Test
-    void validateTokenAtPathValid() throws VaultException {
+    public void validateTokenAtPathValid() throws VaultException {
         LogicalResponse logicalResponseMock = mock(LogicalResponse.class);
         Map<String, String> responseData = new HashMap<>();
         responseData.put("username", "some.developer");
@@ -69,7 +71,7 @@ class VaultTokenValidatorTest {
     }
 
     @Test
-    void validateTokenUserToken() {
+    public void validateTokenUserToken() {
         Optional<NsqToken> nsqToken = Optional.of(new NsqToken(
                 Arrays.asList(".*"),
                 "some.developer",
@@ -88,7 +90,7 @@ class VaultTokenValidatorTest {
     }
 
     @Test
-    void validateTokenServiceToken() {
+    public void validateTokenServiceToken() {
         Optional<NsqToken> userToken = Optional.of(new NsqToken(
                 Arrays.asList(".*"),
                 "some.developer",
@@ -114,7 +116,7 @@ class VaultTokenValidatorTest {
     }
 
     @Test
-    void validateTokenPublishOnlyToken() {
+    public void validateTokenPublishOnlyToken() {
         doReturn(Optional.empty()).when(vaultTokenValidator).validateServiceToken(token, ip);
         doReturn(Optional.empty()).when(vaultTokenValidator).validateUserToken(token, ip);
 
