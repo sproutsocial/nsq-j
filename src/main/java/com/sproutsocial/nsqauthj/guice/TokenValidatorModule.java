@@ -1,24 +1,24 @@
 package com.sproutsocial.nsqauthj.guice;
 
-import com.bettercloud.vault.Vault;
-import com.google.inject.Binder;
+import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import com.hubspot.dropwizard.guicier.DropwizardAwareModule;
 import com.sproutsocial.nsqauthj.NsqAuthJConfiguration;
 import com.sproutsocial.nsqauthj.validators.VaultTokenValidator;
 
-public class TokenValidatorModule extends DropwizardAwareModule<NsqAuthJConfiguration> {
+public class TokenValidatorModule extends AbstractModule {
 
-    public TokenValidatorModule() { }
+    private final NsqAuthJConfiguration config;
 
-    public void configure(Binder binder) { }
+    public TokenValidatorModule(final NsqAuthJConfiguration config) {
+        this.config = config;
+    }
 
     @Provides
     @Singleton
     public VaultTokenValidator provideTokenValidator() throws Exception {
-        return getConfiguration().getTokenValidationFactory().build(
-                getConfiguration().getVaultClientFactory().build()
+        return config.getTokenValidationFactory().build(
+                config.getVaultClientFactory().build()
         );
     }
 }
