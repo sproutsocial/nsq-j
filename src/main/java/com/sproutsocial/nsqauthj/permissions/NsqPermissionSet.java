@@ -20,6 +20,22 @@ As such, the attribute names here cannot be changed.
 public class NsqPermissionSet {
     private static final Logger auditLogger = LoggerFactory.getLogger("NsqPermissionAudit");
 
+    public List<Authorization> getAuthorizations() {
+        return authorizations;
+    }
+
+    public String getIdentityUrl() {
+        return identityUrl;
+    }
+
+    public String getIdentity() {
+        return identity;
+    }
+
+    public int getTtl() {
+        return ttl;
+    }
+
     public static class Authorization {
         @JsonProperty
         private String topic;
@@ -36,10 +52,21 @@ public class NsqPermissionSet {
             this.permissions = permissions;
         }
 
+        public String getTopic() {
+            return topic;
+        }
+
+        public List<String> getChannels() {
+            return channels;
+        }
+
+        public List<String> getPermissions() {
+            return permissions;
+        }
     }
 
     @JsonProperty
-    List<Authorization> authorizations;
+    private List<Authorization> authorizations;
 
     @JsonProperty
     private String identityUrl;
@@ -85,7 +112,7 @@ public class NsqPermissionSet {
 
         NsqPermissionSet nsqPermissionSet = new NsqPermissionSet(
                 authorizations,
-                "",
+                "", // As far as I can tell, this does not matter
                 token.getUsernname(),
                 token.getTtl()
         );
