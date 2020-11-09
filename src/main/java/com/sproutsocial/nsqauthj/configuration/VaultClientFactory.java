@@ -105,7 +105,7 @@ public interface VaultClientFactory {
         }
 
         @JsonProperty
-        private void setToken(String token){
+        public void setToken(String token){
             this.token = token;
         }
     }

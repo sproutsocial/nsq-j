@@ -1,5 +1,6 @@
 package com.sproutsocial.nsqauthj.permissions;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -46,7 +47,8 @@ public class NsqPermissionSet {
         @JsonProperty
         private List<String> permissions;
 
-        public Authorization(String topic, List<String> channels, List<String> permissions) {
+        @JsonCreator
+        public Authorization(@JsonProperty("topics") String topic, @JsonProperty("channels") List<String> channels, @JsonProperty("permissions") List<String> permissions) {
             this.topic = topic;
             this.channels = channels;
             this.permissions = permissions;
@@ -77,7 +79,8 @@ public class NsqPermissionSet {
     @JsonProperty
     private int ttl;
 
-    public NsqPermissionSet(List<Authorization> authorizations, String identityUrl, String identity, int ttl) {
+    @JsonCreator
+    public NsqPermissionSet(@JsonProperty("authorization") List<Authorization> authorizations, @JsonProperty("identityUrl") String identityUrl, @JsonProperty("identity") String identity, @JsonProperty("ttl") int ttl) {
         this.authorizations = authorizations;
         this.identityUrl = identityUrl;
         this.identity = identity;
