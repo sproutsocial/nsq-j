@@ -1,7 +1,6 @@
 package com.sproutsocial.nsqauthj;
 
 import com.bettercloud.vault.Vault;
-import com.bettercloud.vault.json.JsonObject;
 import com.sproutsocial.nsqauthj.configuration.TokenValidationFactory;
 import com.sproutsocial.nsqauthj.configuration.VaultClientFactory;
 import com.sproutsocial.nsqauthj.permissions.NsqPermissionSet;
@@ -9,23 +8,21 @@ import com.sproutsocial.nsqauthj.resources.AuthResource;
 import com.sproutsocial.nsqauthj.validators.VaultTokenValidator;
 import io.dropwizard.testing.junit5.DropwizardExtensionsSupport;
 import io.dropwizard.testing.junit5.ResourceExtension;
+import org.glassfish.jersey.test.grizzly.GrizzlyWebTestContainerFactory;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-
 import java.util.Arrays;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 @ExtendWith(DropwizardExtensionsSupport.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class SomethingIT {
+public class AuthIT {
 
     ResourceExtension resourceExtension;
 
@@ -46,6 +43,7 @@ public class SomethingIT {
 
         resourceExtension = ResourceExtension
                 .builder()
+                .setTestContainerFactory(new GrizzlyWebTestContainerFactory())
                 .addResource(new AuthResource(vaultTokenValidator))
                 .build();
     }
@@ -58,8 +56,11 @@ public class SomethingIT {
                 .request(MediaType.APPLICATION_JSON)
                 .get();
         NsqPermissionSet nsqPermissionSet = response.readEntity(NsqPermissionSet.class);
-        assertEquals("example_user_token", nsqPermissionSet.getIdentity());
         assertEquals(200, response.getStatus());
+        assertEquals("example_user_token", nsqPermissionSet.getIdentity());
+        for (NsqPermissionSet.Authorization authorization : nsqPermissionSet.getAuthorizations()) {
+            assertEquals(Arrays.asList("subscribe", "publish"), authorization.getPermissions());
+        }
     }
 
     @Test
@@ -70,11 +71,11 @@ public class SomethingIT {
                 .request(MediaType.APPLICATION_JSON)
                 .get();
         NsqPermissionSet nsqPermissionSet = response.readEntity(NsqPermissionSet.class);
+        assertEquals(200, response.getStatus());
         assertEquals("example_user_token", nsqPermissionSet.getIdentity());
         for (NsqPermissionSet.Authorization authorization : nsqPermissionSet.getAuthorizations()) {
-            assertEquals(Arrays.asList("publish", "subscribe"), authorization.getPermissions());
+            assertEquals(Arrays.asList("subscribe", "publish"), authorization.getPermissions());
         }
-        assertEquals(200, response.getStatus());
     }
 
     @Test
@@ -85,10 +86,10 @@ public class SomethingIT {
                 .request(MediaType.APPLICATION_JSON)
                 .get();
         NsqPermissionSet nsqPermissionSet = response.readEntity(NsqPermissionSet.class);
+        assertEquals(200, response.getStatus());
         assertEquals("127.0.0.1", nsqPermissionSet.getIdentity());
         for (NsqPermissionSet.Authorization authorization : nsqPermissionSet.getAuthorizations()) {
             assertEquals(Arrays.asList("publish"), authorization.getPermissions());
         }
-        assertEquals(200, response.getStatus());
     }
 }
