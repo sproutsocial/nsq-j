@@ -1,7 +1,7 @@
 package com.sproutsocial.nsqauthj.tokens;
 
 import com.bettercloud.vault.response.LogicalResponse;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.HashMap;

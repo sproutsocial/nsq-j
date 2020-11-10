@@ -5,8 +5,8 @@ import com.bettercloud.vault.VaultException;
 import com.bettercloud.vault.api.Logical;
 import com.bettercloud.vault.response.LogicalResponse;
 import com.sproutsocial.nsqauthj.tokens.NsqToken;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
 import java.util.Arrays;
@@ -30,7 +30,7 @@ public class TestVaultTokenValidator {
     private final String serviceTokenPath ="secrets/nsq/service-tokens/";
     private final String userTokenPath ="secrets/nsq/user-tokens/";
 
-    @Before
+    @BeforeEach
     public void setUp() {
         mockVault = mock(Vault.class);
         vaultTokenValidator = Mockito.spy(new VaultTokenValidator(

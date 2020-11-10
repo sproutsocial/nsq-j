@@ -51,8 +51,6 @@ public class NsqToken {
     public static Optional<NsqToken> fromVaultResponse(LogicalResponse response, String token, TYPE type, int ttl, String remoteAddr) {
         Map<String, String> data = response.getData();
         if (!data.containsKey("username") || !data.containsKey("topics")) {
-            // Log a warning here
-            logger.warn("Vault response for Token " + token + " missing username and/or topics!" );
             return Optional.empty();
         }
 

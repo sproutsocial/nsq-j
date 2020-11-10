@@ -1,23 +1,21 @@
 package com.sproutsocial.nsqauthj.permissions;
 
 import com.sproutsocial.nsqauthj.tokens.NsqToken;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 
-@RunWith(Parameterized.class)
 public class TestNsqPermissionSet {
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> data() {
-        return Arrays.asList(new Object[][] {
-                {
+    public static Stream<Arguments> data() {
+        return Stream.of(
+                Arguments.of(
                         Arrays.asList("fb_whatever", "tw_whatever"),
                         "george.costanza",
                         NsqToken.TYPE.USER,
@@ -25,8 +23,8 @@ public class TestNsqPermissionSet {
                         "127.0.0.1",
                         Arrays.asList(".*ephemeral"),
                         Arrays.asList("subscribe", "publish")
-                },
-                {
+                ),
+                Arguments.of(
                         Arrays.asList("fb_whatever"),
                         "service.service",
                         NsqToken.TYPE.SERVICE,
@@ -34,8 +32,8 @@ public class TestNsqPermissionSet {
                         "127.0.0.1",
                         Arrays.asList(".*"),
                         Arrays.asList("subscribe", "publish")
-                },
-                {
+                ),
+                Arguments.of(
                         Arrays.asList("fb_whatever"),
                         "127.0.0.1",
                         NsqToken.TYPE.PUBLISH_ONLY,
@@ -43,33 +41,21 @@ public class TestNsqPermissionSet {
                         "127.0.0.1",
                         Arrays.asList(".*"),
                         Arrays.asList("publish")
-                }
-        });
+                )
+        );
     }
 
-    @Parameterized.Parameter
-    public List<String> topics;
-
-    @Parameterized.Parameter(1)
-    public String username;
-
-    @Parameterized.Parameter(2)
-    public NsqToken.TYPE nsqType;
-
-    @Parameterized.Parameter(3)
-    public int ttl;
-
-    @Parameterized.Parameter(4)
-    public String ip;
-
-    @Parameterized.Parameter(5)
-    public List<String> channels;
-
-    @Parameterized.Parameter(6)
-    public List<String> permissions;
-
-    @Test
-    public void test() {
+    @ParameterizedTest
+    @MethodSource("data")
+    public void test(
+            List<String> topics,
+            String username,
+            NsqToken.TYPE nsqType,
+            int ttl,
+            String ip,
+            List<String> channels,
+            List<String> permissions
+    ) {
         NsqToken nsqToken = new NsqToken(
                 topics,
                 username,
