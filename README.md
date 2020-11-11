@@ -4,8 +4,6 @@
 
 `nsqauthj` is a Java implementation of an NSQ auth server.
 
-This uses Vault as a backend for its reference backend.
-
 ## How does it work?
 
 `nsqauthj` exposes a single endpoint `/auth` that accepts a single parameter `secret`.  `nsqauthj` then determines
@@ -53,6 +51,9 @@ enqueue messages in NSQ even if we cannot consume them.
 
 Tests are run with maven.  There are both unit tests and integration tests!
 
+If you are using Intellij, you may want to use the Maven test lifecycle to run tests as opposed to relying on built-in
+junit integration or tests may fail (because they are not unittests).
+
 ```
 # Running the Unit Tests
 $ mvn test
@@ -60,6 +61,27 @@ $ mvn test
 # Running the Integration Tests
 $ mvn verify
 ```
+
+## Developing Locally
+
+This project ships with a working development environment using docker-compose.
+```
+$ docker-compose up
+```
+
+To run the application locally, you can use the `example-config.yml` that ships with this repo as it is configured to work locally.
+
+```
+# Make the jar
+$ mvn clean package
+
+# Run the jar
+$ java -Dcommons.config=yaml:example-config.yml -jar target/nsqauthj-0.0.1.jar server
+```
+
+NOTE: integration tests **do not** use docker-compose.  If making updates to `docker-compose.yml`, you'll also want to update
+the configuration of the `docker-maven-plugin` in the pom.
+
 
 ## Deployment
 

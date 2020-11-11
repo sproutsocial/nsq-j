@@ -7,6 +7,8 @@
     <groupId>com.sproutsocial</groupId>
     <artifactId>nsqauthj</artifactId>
     <version>0.0.1</version>
+    <packaging>jar</packaging>
+    <name>nsqauthj</name>
 
     <properties>
         <dropwizard.version>2.0.15</dropwizard.version>
@@ -184,25 +186,20 @@
         <dependency>
             <groupId>com.sproutsocial.configuration</groupId>
             <artifactId>dropwizard</artifactId>
-            <exclusions>
-                <exclusion>
-                    <groupId>jakarta.validation</groupId>
-                    <artifactId>jakarta.validation-api</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
             <version>4.2.3</version>
         </dependency>
+
+        <!-- Testing Dependencies -->
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
             <version>3.5.13</version>
+            <scope>test</scope>
         </dependency>
-
-        <!-- Testing Dependencies -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
@@ -219,16 +216,6 @@
             <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-testing</artifactId>
             <scope>test</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.sun.activation</groupId>
-                    <artifactId>jakarta.activation</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>jakarta.validation</groupId>
-                    <artifactId>jakarta.validation-api</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jersey.test-framework.providers</groupId>
