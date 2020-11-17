@@ -54,6 +54,11 @@ class NSQMessage implements Message {
     }
 
     @Override
+    public void requeue(int delayMillis) {
+        connection.requeue(id, delayMillis);
+    }
+
+    @Override
     public void touch() {
         connection.touch(id);
     }
