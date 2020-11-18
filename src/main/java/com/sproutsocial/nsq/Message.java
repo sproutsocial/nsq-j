@@ -16,6 +16,8 @@ public interface Message {
 
     void requeue();
 
+    void requeue(int delayMillis);
+
     void touch();
 
 }

@@ -57,8 +57,12 @@ class SubConnection extends Connection {
     }
 
     public synchronized void requeue(String id) {
+        requeue(id, 0);
+    }
+
+    public synchronized void requeue(String id, int delayMillis) {
         try {
-            writeCommand("REQ", id, 0);
+            writeCommand("REQ", id, delayMillis);
             requeuedCount++;
             messageDone();
         }
