@@ -8,6 +8,7 @@ import com.sproutsocial.configuration.dropwizard.DropwizardConfigCommonsFactoryF
 import com.sproutsocial.nsqauthj.guice.MetricsModule;
 import com.sproutsocial.nsqauthj.guice.TokenValidatorModule;
 import com.sproutsocial.nsqauthj.resources.AuthResource;
+import com.sproutsocial.nsqauthj.resources.PingResource;
 import com.sproutsocial.platform.Heartbeater;
 import com.sproutsocial.platform.HeartbeaterImpl;
 import io.dropwizard.Application;
@@ -44,5 +45,6 @@ public class NsqAuthJApplication extends Application<NsqAuthJConfiguration> {
         );
 
         env.jersey().register(injector.getInstance(AuthResource.class));
+        env.jersey().register(new PingResource("nsqauthj"));
     }
 }
