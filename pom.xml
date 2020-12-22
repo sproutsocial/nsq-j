@@ -65,6 +65,7 @@
                 <artifactId>docker-maven-plugin</artifactId>
                 <version>0.34.1</version>
                 <configuration>
+                    <showLogs>true</showLogs>
                     <images>
                         <image>
                             <alias>vault</alias>

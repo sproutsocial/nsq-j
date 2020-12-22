@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -x
+set -ex
 export VAULT_ADDR=http://vault:8200
 
 
