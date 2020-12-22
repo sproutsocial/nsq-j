@@ -1,11 +1,14 @@
 package com.sproutsocial.nsqauthj;
 
 import com.bettercloud.vault.Vault;
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.MetricRegistry;
 import com.sproutsocial.nsqauthj.configuration.TokenValidationFactory;
 import com.sproutsocial.nsqauthj.configuration.VaultClientFactory;
 import com.sproutsocial.nsqauthj.permissions.NsqPermissionSet;
 import com.sproutsocial.nsqauthj.resources.AuthResource;
 import com.sproutsocial.nsqauthj.validators.VaultTokenValidator;
+import com.sproutsocial.platform.Heartbeater;
 import io.dropwizard.testing.junit5.DropwizardExtensionsSupport;
 import io.dropwizard.testing.junit5.ResourceExtension;
 import org.glassfish.jersey.test.grizzly.GrizzlyWebTestContainerFactory;
@@ -19,6 +22,9 @@ import javax.ws.rs.core.Response;
 import java.util.Arrays;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(DropwizardExtensionsSupport.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -39,12 +45,17 @@ public class AuthIT {
         vaultClientFactory.setEngineVersion(2);
 
         Vault vault = vaultClientFactory.build();
-        VaultTokenValidator vaultTokenValidator = tokenValidationFactory.build(vault);
+        MetricRegistry metricRegistry = mock(MetricRegistry.class);
+        when(metricRegistry.counter(anyString())).thenReturn(new Counter());
+
+        VaultTokenValidator vaultTokenValidator = tokenValidationFactory.build(vault, metricRegistry);
+
+        Heartbeater heartbeater = mock(Heartbeater.class);
 
         resourceExtension = ResourceExtension
                 .builder()
                 .setTestContainerFactory(new GrizzlyWebTestContainerFactory())
-                .addResource(new AuthResource(vaultTokenValidator))
+                .addResource(new AuthResource(vaultTokenValidator, heartbeater, metricRegistry))
                 .build();
     }
 

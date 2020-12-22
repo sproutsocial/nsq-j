@@ -26,7 +26,7 @@ public class NsqToken {
     private List<String> topics;
 
     @JsonProperty
-    private String usernname;
+    private String username;
 
     @JsonProperty
     private int ttl;
@@ -40,9 +40,9 @@ public class NsqToken {
         PUBLISH_ONLY
     }
 
-    public NsqToken(List<String> topics, String usernname, TYPE type, int ttl, String remoteAddr) {
+    public NsqToken(List<String> topics, String username, TYPE type, int ttl, String remoteAddr) {
         this.topics = topics;
-        this.usernname = usernname;
+        this.username = username;
         this.ttl = ttl;
         this.type = type;
         this.remoteAddr = remoteAddr;
@@ -73,8 +73,8 @@ public class NsqToken {
         return topics;
     }
 
-    public String getUsernname() {
-        return usernname;
+    public String getUsername() {
+        return username;
     }
 
     public int getTtl() {

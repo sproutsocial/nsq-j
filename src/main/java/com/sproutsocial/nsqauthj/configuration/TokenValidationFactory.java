@@ -1,6 +1,7 @@
 package com.sproutsocial.nsqauthj.configuration;
 
 import com.bettercloud.vault.Vault;
+import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sproutsocial.nsqauthj.validators.VaultTokenValidator;
 
@@ -47,8 +48,8 @@ public class TokenValidationFactory {
         this.tokenTTL = tokenTTL;
     }
 
-    public VaultTokenValidator build(Vault vault) {
-        return new VaultTokenValidator(vault, userTokenPath, serviceTokenPath, tokenTTL);
+    public VaultTokenValidator build(Vault vault, MetricRegistry metricRegistry) {
+        return new VaultTokenValidator(vault, userTokenPath, serviceTokenPath, tokenTTL, metricRegistry);
     }
 
 }

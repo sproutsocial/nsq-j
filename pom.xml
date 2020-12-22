@@ -167,7 +167,7 @@
             <dependency>
                 <groupId>com.sproutsocial.configuration</groupId>
                 <artifactId>bom</artifactId>
-                <version>0.2.8</version>
+                <version>0.3.6</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -188,9 +188,18 @@
             <artifactId>dropwizard</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.sproutsocial.configuration</groupId>
+            <artifactId>metrics</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.google.inject</groupId>
             <artifactId>guice</artifactId>
             <version>4.2.3</version>
+        </dependency>
+        <dependency>
+            <groupId>com.sproutsocial.platform</groupId>
+            <artifactId>heartbeater</artifactId>
+            <version>3.0</version>
         </dependency>
 
         <!-- Testing Dependencies -->

@@ -70,7 +70,7 @@ public class TestNsqToken {
         assertTrue(optionalNsqToken.isPresent());
         NsqToken nsqToken = optionalNsqToken.get();
         assertEquals(nsqToken.getTopics(), Arrays.asList("tw_engagement", "fb_post"));
-        assertEquals(nsqToken.getUsernname(), "some.developer");
+        assertEquals(nsqToken.getUsername(), "some.developer");
         assertEquals(nsqToken.getType(), NsqToken.TYPE.USER);
         assertEquals(nsqToken.getTtl(), 300);
 
@@ -82,7 +82,7 @@ public class TestNsqToken {
         assertTrue(optionalNsqToken.isPresent());
         NsqToken token = optionalNsqToken.get();
         assertEquals(token.getTtl(), 500);
-        assertEquals(token.getUsernname(), "123.123.123.123");
+        assertEquals(token.getUsername(), "123.123.123.123");
         assertEquals(token.getType(), NsqToken.TYPE.PUBLISH_ONLY);
         assertEquals(token.getTopics(), Arrays.asList(".*"));
 

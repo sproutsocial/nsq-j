@@ -3,6 +3,8 @@ package com.sproutsocial.nsqauthj.validators;
 import com.bettercloud.vault.Vault;
 import com.bettercloud.vault.VaultException;
 import com.bettercloud.vault.response.LogicalResponse;
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.MetricRegistry;
 import com.sproutsocial.nsqauthj.NsqAuthJConfiguration;
 import com.sproutsocial.nsqauthj.configuration.TokenValidationFactory;
 import com.sproutsocial.nsqauthj.tokens.NsqToken;
@@ -20,20 +22,18 @@ public class VaultTokenValidator {
 
     private final int ttl;
 
-    public VaultTokenValidator(final Vault vault, NsqAuthJConfiguration configuration) {
-        this.vault = vault;
+    private final Counter serviceCounter;
+    private final Counter userCounter;
+    private final Counter publishOnlyCounter;
 
-        TokenValidationFactory tokenValidationFactory = configuration.getTokenValidationFactory();
-        this.userTokenPath = tokenValidationFactory.getUserTokenPath();
-        this.serviceTokenPath = tokenValidationFactory.getServiceTokenPath();
-        this.ttl = tokenValidationFactory.getTokenTTL();
-    }
-
-    public VaultTokenValidator(Vault vault, String userTokenPath, String serviceTokenPath, int ttl) {
+    public VaultTokenValidator(Vault vault, String userTokenPath, String serviceTokenPath, int ttl, MetricRegistry metricRegistry) {
         this.vault = vault;
         this.userTokenPath = userTokenPath;
         this.serviceTokenPath = serviceTokenPath;
         this.ttl = ttl;
+        serviceCounter = metricRegistry.counter("granted.vault.service");
+        userCounter = metricRegistry.counter("granted.vault.user");
+        publishOnlyCounter = metricRegistry.counter("granted.failed.publish_only");
     }
 
 
@@ -63,16 +63,22 @@ public class VaultTokenValidator {
         // It is far more likely we are dealing with a Service Token so check that first
         nsqToken = validateServiceToken(token, remoteAddr);
 
-        if (!nsqToken.isPresent()) {
-            nsqToken = validateUserToken(token, remoteAddr);
+        if (nsqToken.isPresent()) {
+            serviceCounter.inc();
+            return nsqToken;
+        }
+
+        // Check if it is a user token
+        nsqToken = validateUserToken(token, remoteAddr);
+        if (nsqToken.isPresent()) {
+            userCounter.inc();
+            return nsqToken;
         }
 
         // If either is valid, we still want to allow publishing!
         // This is important as if Vault is having issues, we must still be able to publish messages!
-        if (!nsqToken.isPresent()) {
-           logger.warn("Unable to find User or Service token for provided token " + token + " from " + remoteAddr);
-           nsqToken = NsqToken.generatePublishOnlyToken(ttl, remoteAddr);
-        }
-        return nsqToken;
+        logger.warn("Unable to find User or Service token for provided token " + token + " from " + remoteAddr);
+        publishOnlyCounter.inc();
+        return NsqToken.generatePublishOnlyToken(ttl, remoteAddr);
     }
 }

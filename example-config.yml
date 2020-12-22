@@ -8,3 +8,9 @@ tokenValidation:
   serviceTokenPath: secret/services/nsq/service-tokens/
   userTokenPath: secret/services/nsq/user-tokens/
   tokenTTL: 3600
+
+metrics:
+  type: ConsoleReporter
+  convertRatesTo: minutes
+  convertDurationsTo: seconds
+  publishRate: 60

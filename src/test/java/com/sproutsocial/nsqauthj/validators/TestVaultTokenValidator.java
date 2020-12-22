@@ -4,10 +4,13 @@ import com.bettercloud.vault.Vault;
 import com.bettercloud.vault.VaultException;
 import com.bettercloud.vault.api.Logical;
 import com.bettercloud.vault.response.LogicalResponse;
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.MetricRegistry;
 import com.sproutsocial.nsqauthj.tokens.NsqToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.mockito.internal.matchers.Any;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -33,11 +36,14 @@ public class TestVaultTokenValidator {
     @BeforeEach
     public void setUp() {
         mockVault = mock(Vault.class);
+        MetricRegistry mockRegistry = mock(MetricRegistry.class);
+        when(mockRegistry.counter(anyString())).thenReturn(new Counter());
         vaultTokenValidator = Mockito.spy(new VaultTokenValidator(
                 mockVault,
                 userTokenPath,
                 serviceTokenPath,
-                300
+                300,
+                mockRegistry
         ));
     }
 
