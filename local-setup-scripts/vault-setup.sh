@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 set -ex
-export VAULT_ADDR=http://vault:8200
+export VAULT_ADDR=http://testing-vault:8200
 
 
 

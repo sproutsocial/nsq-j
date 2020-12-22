@@ -68,7 +68,7 @@
                     <showLogs>true</showLogs>
                     <images>
                         <image>
-                            <alias>vault</alias>
+                            <alias>testing-vault</alias>
                             <name>vault:1.2.3</name>
                             <run>
                                 <ports>8200:8200</ports>
@@ -98,15 +98,15 @@
                                     </bind>
                                 </volumes>
                                 <dependsOn>
-                                    <container>vault</container>
+                                    <container>testing-vault</container>
                                 </dependsOn>
                                 <links>
-                                    <link>vault:vault</link>
+                                    <link>testing-vault:testing-vault</link>
                                 </links>
                                 <env>
                                     <VAULT_TOKEN>root</VAULT_TOKEN>
-                                    <VAULT_ADDR>http://vault:8200</VAULT_ADDR>
-                                    <VAULT_CLIENT_ADDR>http://vault:8250</VAULT_CLIENT_ADDR>
+                                    <VAULT_ADDR>http://testing-vault:8200</VAULT_ADDR>
+                                    <VAULT_CLIENT_ADDR>http://testing-vault:8250</VAULT_CLIENT_ADDR>
                                 </env>
                                 <cmd>./vault-setup.sh</cmd>
                             </run>
