@@ -45,6 +45,6 @@ public class NsqAuthJApplication extends Application<NsqAuthJConfiguration> {
         );
 
         env.jersey().register(injector.getInstance(AuthResource.class));
-        env.jersey().register(new PingResource("nsqauthj"));
+        env.jersey().register(new PingResource(getName()));
     }
 }
