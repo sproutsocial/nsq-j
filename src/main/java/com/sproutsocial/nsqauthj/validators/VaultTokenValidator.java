@@ -75,7 +75,7 @@ public class VaultTokenValidator {
             return nsqToken;
         }
 
-        // If either is valid, we still want to allow publishing!
+        // If either is invalid, we still want to allow publishing!
         // This is important as if Vault is having issues, we must still be able to publish messages!
         logger.warn("Unable to find User or Service token for provided token " + token + " from " + remoteAddr);
         publishOnlyCounter.inc();
