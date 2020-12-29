@@ -107,8 +107,9 @@ public interface VaultClientFactory {
         protected void startRenewingToken(String token, Vault vault) {
             ScheduledExecutorService executorService = Executors
                     .newSingleThreadScheduledExecutor();
-            VaultTokenRenewer renewer = new VaultTokenRenewer(token, vault, getRenewTime());
+            VaultTokenRenewer renewer = new VaultTokenRenewer(token, vault, getRenewInterval());
             executorService.scheduleAtFixedRate(renewer::renewToken, renewInterval, renewInterval, TimeUnit.SECONDS);
+
         }
 
         @JsonProperty
@@ -155,17 +156,15 @@ public interface VaultClientFactory {
             return renewable;
         }
 
+        @JsonProperty
         public void setRenewable(boolean renewable) {
             this.renewable = renewable;
         }
 
-        public int getRenewTime() {
-            return renewInterval;
-        }
+        public int getRenewInterval() { return renewInterval; }
 
-        public void setRenewTime(int renewInterval) {
-            this.renewInterval = renewInterval;
-        }
+        @JsonProperty
+        public void setRenewInterval(int renewInterval) { this.renewInterval = renewInterval; }
     }
 
     class Token extends AbstractVaultClient{
