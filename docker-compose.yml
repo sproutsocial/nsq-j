@@ -21,6 +21,9 @@ services:
       - type: bind
         source: ./local-setup-scripts/vault-setup.sh
         target: /vault-setup.sh
+      - type: bind
+        source: ./local-setup-scripts/nsqd-auth-validation.hcl
+        target: /nsqd-auth-validation.hcl
     command:
       - ./vault-setup.sh
     environment:
