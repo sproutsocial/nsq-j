@@ -95,6 +95,7 @@
                                 <volumes>
                                     <bind>
                                         <volume>./local-setup-scripts/vault-setup.sh:/vault-setup.sh</volume>
+                                        <volume>./local-setup-scripts/nsqd-auth-validation.hcl:/nsqd-auth-validation.hcl</volume>
                                     </bind>
                                 </volumes>
                                 <dependsOn>

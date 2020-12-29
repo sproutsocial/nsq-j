@@ -82,7 +82,7 @@ public interface VaultClientFactory {
         private boolean renewable = false;
 
         @NotNull
-        private int renewInterval = 30;
+        private int renewInterval = 3600; // renew once an hour
 
         abstract String getToken() throws Exception;
 
