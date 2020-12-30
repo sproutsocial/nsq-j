@@ -1,0 +1,24 @@
+service_name: nsqauthj
+bundle_type: remote_jar
+slack_channel: eng-dbre
+build_target_path: target
+project_type: java
+hosts:
+  - name: prod
+    hostnames:
+      - prod-nsq-auth-server-useast1a-02
+    healthchecks:
+      up:
+        set:
+          type: http
+          exec: "http://localhost:8080/ping/pass?api_key=hyPhinCagCuksOk7"
+        check:
+          type: http
+          exec: "http://localhost:8080/ping"
+      down:
+        set:
+          type: http
+          exec: "http://localhost:8080/ping/fail?api_key=hyPhinCagCuksOk7"
+        check:
+          type: http
+          exec: "http://localhost:8080/ping"

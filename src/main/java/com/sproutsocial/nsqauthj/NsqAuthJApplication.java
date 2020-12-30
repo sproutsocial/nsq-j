@@ -23,9 +23,7 @@ public class NsqAuthJApplication extends Application<NsqAuthJConfiguration> {
     }
 
     @Override
-    public String getName() {
-        return "NsqAuthJ";
-    }
+    public String getName() { return "nsqauthj"; }
 
     public void initialize(Bootstrap<NsqAuthJConfiguration> bootstrap) {
         bootstrap.setConfigurationFactoryFactory(new DropwizardConfigCommonsFactoryFactory());
