@@ -6,4 +6,5 @@ sproutMultiModuleBuild {
   notifySlackGroupsOnFailure = ['@dbre']
   jdk = 8
   mavenProperties = '-e -X'
+  enableAutoVersioning = true
 }
