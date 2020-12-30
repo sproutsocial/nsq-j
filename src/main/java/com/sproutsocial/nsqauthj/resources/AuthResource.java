@@ -40,13 +40,12 @@ public class AuthResource {
     @GET
     @Path("")
     @Timed
-    @Produces({MediaType.TEXT_HTML, MediaType.APPLICATION_JSON})
     public Response validateWithVault(
             @QueryParam("secret") @NotEmpty @NotNull String tokenString,
             @Context HttpServletRequest request) {
         Optional<NsqToken> nsqToken = vaultTokenValidator.validateToken(tokenString, request.getRemoteAddr());
         NsqPermissionSet nsqPermissionSet = NsqPermissionSet.fromNsqToken(nsqToken.get());
         heartbeater.sendHeartBeat("nsqauthj", "nsqauthj");
-        return Response.ok().entity(nsqPermissionSet).build();
+        return Response.ok().type(MediaType.APPLICATION_JSON).entity(nsqPermissionSet).build();
     }
 }
