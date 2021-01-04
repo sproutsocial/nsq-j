@@ -3,10 +3,13 @@ bundle_type: remote_jar
 slack_channel: eng-dbre
 build_target_path: target
 project_type: java
+startup_wait_seconds: 10
 hosts:
   - name: prod
     hostnames:
       - prod-nsq-auth-server-useast1a-02
+      - prod-nsq-auth-server-useast1b-02
+      - prod-nsq-auth-server-useast1d-02
     healthchecks:
       up:
         set:
