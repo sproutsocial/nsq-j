@@ -43,6 +43,7 @@ public class TestVaultTokenValidator {
                 userTokenPath,
                 serviceTokenPath,
                 300,
+                false,
                 mockRegistry
         ));
     }

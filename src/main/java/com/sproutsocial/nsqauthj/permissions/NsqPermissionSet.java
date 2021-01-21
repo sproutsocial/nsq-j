@@ -87,7 +87,7 @@ public class NsqPermissionSet {
         this.ttl = ttl;
     }
 
-    public static NsqPermissionSet fromNsqToken(NsqToken token) {
+    public static NsqPermissionSet fromNsqToken(NsqToken token, Boolean failOpen) {
         List<String> channels = new ArrayList<>();
         ArrayList<String> permissions = new ArrayList<>(Arrays.asList("subscribe", "publish"));
         switch(token.getType()) {
@@ -99,7 +99,10 @@ public class NsqPermissionSet {
                 break;
             default:
                 channels.add(".*");
-                permissions.remove("subscribe");
+                // If nsqauthj is failing open, leave the subscribe permission for all tokens.
+                if(!failOpen) {
+                    permissions.remove("subscribe");
+                }
 
         }
 
