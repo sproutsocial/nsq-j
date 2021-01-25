@@ -47,7 +47,24 @@ the consumer is finished.
 *Publish Only Tokens* only grant the ability to publish.  These exists so that if Vault is down, we are still able to
 enqueue messages in NSQ even if we cannot consume them.
 
-## Running Tests
+## NSQ Auth Failover Configuration
+NSQ Auth validates tokens by querying Vault and verifying that the token is valid. 
+In that case that Vault is down, tokens would not be validated and therefore only `Publish Only` tokens could be used. 
+
+Due to planned downtime or an unexpected outage in Vault, NSQ Auth can be set to `fail open` in order to continue service functionality during downtime. 
+To fail open, set the `failOpen` value in the `tokenValidation` configuration block to `true`. 
+```
+tokenValidation:
+  serviceTokenPath: secret/services/nsq/service-tokens/
+  userTokenPath: secret/services/nsq/user-tokens/
+  tokenTTL: 3600
+  failOpen: true
+```
+
+This will cause all tokens to have `subscribe` and `publish` capabilities. NOTE: Because of security reasons, this should only be set to true when necessary. 
+`failOpen` is set to false by default. 
+ 
+# Running Tests
 
 Tests are run with maven.  There are both unit tests and integration tests!
 

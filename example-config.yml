@@ -8,6 +8,7 @@ tokenValidation:
   serviceTokenPath: secret/services/nsq/service-tokens/
   userTokenPath: secret/services/nsq/user-tokens/
   tokenTTL: 3600
+  failOpen: false
 
 metrics:
   type: ConsoleReporter

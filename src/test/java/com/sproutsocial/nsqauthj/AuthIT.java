@@ -31,6 +31,7 @@ import static org.mockito.Mockito.when;
 public class AuthIT {
 
     ResourceExtension resourceExtension;
+    ResourceExtension resourceExtensionFailOpen;
 
     @BeforeAll
     public void setUp() throws Exception {
@@ -57,6 +58,17 @@ public class AuthIT {
                 .setTestContainerFactory(new GrizzlyWebTestContainerFactory())
                 .addResource(new AuthResource(vaultTokenValidator, heartbeater, metricRegistry))
                 .build();
+
+        // Set up tokenValidationFactory and all subsequent resources with failOpen=true
+        tokenValidationFactory.setFailOpen(true);
+        vaultTokenValidator = tokenValidationFactory.build(vault,
+          metricRegistry);
+
+        resourceExtensionFailOpen = ResourceExtension
+          .builder()
+          .setTestContainerFactory(new GrizzlyWebTestContainerFactory())
+          .addResource(new AuthResource(vaultTokenValidator, heartbeater, metricRegistry))
+          .build();
     }
 
     @Test
@@ -101,6 +113,21 @@ public class AuthIT {
         assertEquals("127.0.0.1", nsqPermissionSet.getIdentity());
         for (NsqPermissionSet.Authorization authorization : nsqPermissionSet.getAuthorizations()) {
             assertEquals(Arrays.asList("publish"), authorization.getPermissions());
+        }
+    }
+
+    @Test
+    public void testFailOverPublishOnlyToken() throws Exception {
+        final Response response = resourceExtensionFailOpen
+          .target("/auth")
+          .queryParam("secret", "garbage")
+          .request(MediaType.APPLICATION_JSON)
+          .get();
+        NsqPermissionSet nsqPermissionSet = response.readEntity(NsqPermissionSet.class);
+        assertEquals(200, response.getStatus());
+        assertEquals("127.0.0.1", nsqPermissionSet.getIdentity());
+        for (NsqPermissionSet.Authorization authorization : nsqPermissionSet.getAuthorizations()) {
+            assertEquals(Arrays.asList("subscribe", "publish"), authorization.getPermissions());
         }
     }
 }

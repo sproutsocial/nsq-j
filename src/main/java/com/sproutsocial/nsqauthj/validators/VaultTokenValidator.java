@@ -22,15 +22,19 @@ public class VaultTokenValidator {
 
     private final int ttl;
 
+    private Boolean failOpen;
+
     private final Counter serviceCounter;
     private final Counter userCounter;
     private final Counter publishOnlyCounter;
 
-    public VaultTokenValidator(Vault vault, String userTokenPath, String serviceTokenPath, int ttl, MetricRegistry metricRegistry) {
+    public VaultTokenValidator(Vault vault, String userTokenPath, String serviceTokenPath,
+                               int ttl, Boolean failOpen, MetricRegistry metricRegistry) {
         this.vault = vault;
         this.userTokenPath = userTokenPath;
         this.serviceTokenPath = serviceTokenPath;
         this.ttl = ttl;
+        this.failOpen = failOpen;
         serviceCounter = metricRegistry.counter("granted.vault.service");
         userCounter = metricRegistry.counter("granted.vault.user");
         publishOnlyCounter = metricRegistry.counter("granted.failed.publish_only");
@@ -80,5 +84,9 @@ public class VaultTokenValidator {
         logger.warn("Unable to find User or Service token for provided token " + token + " from " + remoteAddr);
         publishOnlyCounter.inc();
         return NsqToken.generatePublishOnlyToken(ttl, remoteAddr);
+    }
+
+    public Boolean getFailOpen() {
+        return failOpen;
     }
 }

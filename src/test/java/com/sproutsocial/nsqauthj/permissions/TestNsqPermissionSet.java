@@ -22,7 +22,8 @@ public class TestNsqPermissionSet {
                         300,
                         "127.0.0.1",
                         Arrays.asList(".*ephemeral"),
-                        Arrays.asList("subscribe", "publish")
+                        Arrays.asList("subscribe", "publish"),
+                        false
                 ),
                 Arguments.of(
                         Arrays.asList("fb_whatever"),
@@ -31,7 +32,8 @@ public class TestNsqPermissionSet {
                         300,
                         "127.0.0.1",
                         Arrays.asList(".*"),
-                        Arrays.asList("subscribe", "publish")
+                        Arrays.asList("subscribe", "publish"),
+                        false
                 ),
                 Arguments.of(
                         Arrays.asList("fb_whatever"),
@@ -40,7 +42,18 @@ public class TestNsqPermissionSet {
                         300,
                         "127.0.0.1",
                         Arrays.asList(".*"),
-                        Arrays.asList("publish")
+                        Arrays.asList("publish"),
+                        false
+                ),
+                Arguments.of(
+                        Arrays.asList("fb_whatever"),
+                        "127.0.0.1",
+                        NsqToken.TYPE.PUBLISH_ONLY,
+                        300,
+                        "127.0.0.1",
+                        Arrays.asList(".*"),
+                        Arrays.asList("subscribe", "publish"),
+                        true
                 )
         );
     }
@@ -54,7 +67,8 @@ public class TestNsqPermissionSet {
             int ttl,
             String ip,
             List<String> channels,
-            List<String> permissions
+            List<String> permissions,
+            Boolean failOpen
     ) {
         NsqToken nsqToken = new NsqToken(
                 topics,
@@ -64,7 +78,7 @@ public class TestNsqPermissionSet {
                 ip
         );
 
-        NsqPermissionSet permissionSet = NsqPermissionSet.fromNsqToken(nsqToken);
+        NsqPermissionSet permissionSet = NsqPermissionSet.fromNsqToken(nsqToken, failOpen);
 
         for (NsqPermissionSet.Authorization authorization : permissionSet.getAuthorizations()) {
             assertEquals(authorization.getChannels(), channels);

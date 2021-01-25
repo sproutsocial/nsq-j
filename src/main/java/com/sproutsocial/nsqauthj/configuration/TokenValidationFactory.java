@@ -18,6 +18,8 @@ public class TokenValidationFactory {
     @NotNull
     private int tokenTTL;
 
+    private Boolean failOpen = false;
+
     @JsonProperty
     public String getServiceTokenPath() {
         return serviceTokenPath;
@@ -44,12 +46,23 @@ public class TokenValidationFactory {
     }
 
     @JsonProperty
+    public Boolean getFailOpen() {
+        return failOpen;
+    }
+
+    @JsonProperty
+    public void setFailOpen(Boolean failOpen) {
+        this.failOpen = failOpen;
+    }
+
+    @JsonProperty
     public void setTokenTTL(int tokenTTL) {
         this.tokenTTL = tokenTTL;
     }
 
     public VaultTokenValidator build(Vault vault, MetricRegistry metricRegistry) {
-        return new VaultTokenValidator(vault, userTokenPath, serviceTokenPath, tokenTTL, metricRegistry);
+        return new VaultTokenValidator(vault, userTokenPath, serviceTokenPath, tokenTTL,
+          failOpen, metricRegistry);
     }
 
 }
