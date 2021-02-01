@@ -69,7 +69,7 @@ public interface VaultClientFactory {
         private String addr;
 
         @NotNull
-        private int engineVersion;
+        private int engineVersion = 2;
 
 
         @NotNull
