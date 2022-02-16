@@ -9,10 +9,10 @@ import com.sproutsocial.nsqauthj.tokens.NsqToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /*
 This permission set is evaluated by NSQ when determining permissions for a connection.
@@ -20,6 +20,7 @@ As such, the attribute names here cannot be changed.
  */
 public class NsqPermissionSet {
     private static final Logger auditLogger = LoggerFactory.getLogger("NsqPermissionAudit");
+
 
     public List<Authorization> getAuthorizations() {
         return authorizations;
@@ -38,6 +39,12 @@ public class NsqPermissionSet {
     }
 
     public static class Authorization {
+        static String subscribePermission = "subscribe";
+        static String publishPermission = "publish";
+        static String wildcardChannel = ".*";
+        static String ephermeralChannel = ".*ephemeral";
+        static ArrayList<String> allPermissions = new ArrayList<>(Arrays.asList(subscribePermission, publishPermission));
+
         @JsonProperty
         private String topic;
 
@@ -65,6 +72,22 @@ public class NsqPermissionSet {
         public List<String> getPermissions() {
             return permissions;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            final Authorization a = (Authorization) o;
+            return (
+                    Objects.equals(topic, a.topic) &&
+                    Objects.equals(channels, a.channels) &&
+                    Objects.equals(permissions, a.permissions)
+            );
+        }
     }
 
     @JsonProperty
@@ -88,32 +111,42 @@ public class NsqPermissionSet {
     }
 
     public static NsqPermissionSet fromNsqToken(NsqToken token, Boolean failOpen) {
-        List<String> channels = new ArrayList<>();
-        ArrayList<String> permissions = new ArrayList<>(Arrays.asList("subscribe", "publish"));
-        switch(token.getType()) {
-            case SERVICE:
-                channels.add(".*");
-                break;
-            case USER:
-                channels.add(".*ephemeral");
-                break;
-            default:
-                channels.add(".*");
-                // If nsqauthj is failing open, leave the subscribe permission for all tokens.
-                if(!failOpen) {
-                    permissions.remove("subscribe");
-                }
-
-        }
-
         List<Authorization> authorizations = new ArrayList<>();
 
         for (String topic : token.getTopics()) {
-            authorizations.add(new Authorization(
-                    topic,
-                    channels,
-                    permissions
-            ));
+            switch(token.getType()) {
+                case SERVICE:
+                    authorizations.add(new Authorization(
+                            topic,
+                            Arrays.asList(Authorization.wildcardChannel),
+                            Authorization.allPermissions
+                    ));
+                    break;
+                case USER:
+                    authorizations.add(new Authorization(
+                            topic,
+                            Arrays.asList(Authorization.wildcardChannel),
+                            Arrays.asList(Authorization.publishPermission)
+                    ));
+                    authorizations.add(new Authorization(
+                            topic,
+                            Arrays.asList(Authorization.ephermeralChannel),
+                            Arrays.asList(Authorization.subscribePermission)
+                    ));
+                    break;
+                default:
+                    // If nsqauthj is failing open, leave the subscribe permission for all tokens.
+                    List<String> permissions = Authorization.allPermissions;
+                    if(!failOpen) {
+                        permissions = Arrays.asList(Authorization.publishPermission);
+                    }
+                    authorizations.add(new Authorization(
+                            topic,
+                            Arrays.asList(Authorization.wildcardChannel),
+                            permissions
+                    ));
+            }
+
         }
 
         NsqPermissionSet nsqPermissionSet = new NsqPermissionSet(
