@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class TestNsqPermissionSet {
 
@@ -21,8 +22,30 @@ public class TestNsqPermissionSet {
                         NsqToken.TYPE.USER,
                         300,
                         "127.0.0.1",
-                        Arrays.asList(".*ephemeral"),
-                        Arrays.asList("subscribe", "publish"),
+                        // Users should have `publish` on any channel (wildcard -- .*) and
+                        // `subscribe` on ephemeral channels (.*ephemeral)
+                        Arrays.asList(
+                                new NsqPermissionSet.Authorization(
+                                        "fb_whatever",
+                                        Arrays.asList(NsqPermissionSet.Authorization.wildcardChannel),
+                                        Arrays.asList(NsqPermissionSet.Authorization.publishPermission)
+                                ),
+                                new NsqPermissionSet.Authorization(
+                                        "fb_whatever",
+                                        Arrays.asList(NsqPermissionSet.Authorization.ephermeralChannel),
+                                        Arrays.asList(NsqPermissionSet.Authorization.subscribePermission)
+                                ),
+                                new NsqPermissionSet.Authorization(
+                                        "tw_whatever",
+                                        Arrays.asList(NsqPermissionSet.Authorization.wildcardChannel),
+                                        Arrays.asList(NsqPermissionSet.Authorization.publishPermission)
+                                ),
+                                new NsqPermissionSet.Authorization(
+                                        "tw_whatever",
+                                        Arrays.asList(NsqPermissionSet.Authorization.ephermeralChannel),
+                                        Arrays.asList(NsqPermissionSet.Authorization.subscribePermission)
+                                )
+                        ),
                         false
                 ),
                 Arguments.of(
@@ -31,8 +54,14 @@ public class TestNsqPermissionSet {
                         NsqToken.TYPE.SERVICE,
                         300,
                         "127.0.0.1",
-                        Arrays.asList(".*"),
-                        Arrays.asList("subscribe", "publish"),
+                        // Services should have `subscribe` and `publish` on any channel (wildcard -- .*)
+                        Arrays.asList(
+                                new NsqPermissionSet.Authorization(
+                                        "fb_whatever",
+                                        Arrays.asList(NsqPermissionSet.Authorization.wildcardChannel),
+                                        NsqPermissionSet.Authorization.allPermissions
+                                )
+                        ),
                         false
                 ),
                 Arguments.of(
@@ -41,8 +70,14 @@ public class TestNsqPermissionSet {
                         NsqToken.TYPE.PUBLISH_ONLY,
                         300,
                         "127.0.0.1",
-                        Arrays.asList(".*"),
-                        Arrays.asList("publish"),
+                        // Publish only tokens should only have the `publish` permission on the wildcard channel
+                        Arrays.asList(
+                                new NsqPermissionSet.Authorization(
+                                        "fb_whatever",
+                                        Arrays.asList(NsqPermissionSet.Authorization.wildcardChannel),
+                                        Arrays.asList(NsqPermissionSet.Authorization.publishPermission)
+                                )
+                        ),
                         false
                 ),
                 Arguments.of(
@@ -51,8 +86,14 @@ public class TestNsqPermissionSet {
                         NsqToken.TYPE.PUBLISH_ONLY,
                         300,
                         "127.0.0.1",
-                        Arrays.asList(".*"),
-                        Arrays.asList("subscribe", "publish"),
+                        // Publish only tokens should only have the all permission on the wildcard channel if we are failing open
+                        Arrays.asList(
+                                new NsqPermissionSet.Authorization(
+                                        "fb_whatever",
+                                        Arrays.asList(NsqPermissionSet.Authorization.wildcardChannel),
+                                        NsqPermissionSet.Authorization.allPermissions
+                                )
+                        ),
                         true
                 )
         );
@@ -66,8 +107,7 @@ public class TestNsqPermissionSet {
             NsqToken.TYPE nsqType,
             int ttl,
             String ip,
-            List<String> channels,
-            List<String> permissions,
+            List<NsqPermissionSet.Authorization> authorizations,
             Boolean failOpen
     ) {
         NsqToken nsqToken = new NsqToken(
@@ -80,14 +120,6 @@ public class TestNsqPermissionSet {
 
         NsqPermissionSet permissionSet = NsqPermissionSet.fromNsqToken(nsqToken, failOpen);
 
-        for (NsqPermissionSet.Authorization authorization : permissionSet.getAuthorizations()) {
-            assertEquals(authorization.getChannels(), channels);
-            assertEquals(authorization.getPermissions(), permissions);
-        }
-
-        assertEquals(
-                permissionSet.getAuthorizations().size(),
-                topics.size()
-        );
+        assertTrue(permissionSet.getAuthorizations().equals(authorizations));
     }
 }

@@ -20,8 +20,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.Arrays;
+import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -81,24 +83,27 @@ public class AuthIT {
         NsqPermissionSet nsqPermissionSet = response.readEntity(NsqPermissionSet.class);
         assertEquals(200, response.getStatus());
         assertEquals("example_user_token", nsqPermissionSet.getIdentity());
-        for (NsqPermissionSet.Authorization authorization : nsqPermissionSet.getAuthorizations()) {
-            assertEquals(Arrays.asList("subscribe", "publish"), authorization.getPermissions());
-        }
+        List<NsqPermissionSet.Authorization> expected = Arrays.asList(
+                new NsqPermissionSet.Authorization(".*", Arrays.asList(".*"), Arrays.asList("publish")),
+                new NsqPermissionSet.Authorization(".*", Arrays.asList(".*ephemeral"), Arrays.asList("subscribe"))
+        );
+        assertTrue(expected.equals(nsqPermissionSet.getAuthorizations()));
     }
 
     @Test
     public void testServiceToken() {
         final Response response = resourceExtension
                 .target("/auth")
-                .queryParam("secret", "1234")
+                .queryParam("secret", "abcd")
                 .request(MediaType.APPLICATION_JSON)
                 .get();
         NsqPermissionSet nsqPermissionSet = response.readEntity(NsqPermissionSet.class);
         assertEquals(200, response.getStatus());
-        assertEquals("example_user_token", nsqPermissionSet.getIdentity());
-        for (NsqPermissionSet.Authorization authorization : nsqPermissionSet.getAuthorizations()) {
-            assertEquals(Arrays.asList("subscribe", "publish"), authorization.getPermissions());
-        }
+        assertEquals("example_service_token", nsqPermissionSet.getIdentity());
+        List<NsqPermissionSet.Authorization> expected = Arrays.asList(
+                new NsqPermissionSet.Authorization(".*", Arrays.asList(".*"), Arrays.asList("subscribe","publish"))
+        );
+        assertTrue(expected.equals(nsqPermissionSet.getAuthorizations()));
     }
 
     @Test
@@ -111,9 +116,10 @@ public class AuthIT {
         NsqPermissionSet nsqPermissionSet = response.readEntity(NsqPermissionSet.class);
         assertEquals(200, response.getStatus());
         assertEquals("127.0.0.1", nsqPermissionSet.getIdentity());
-        for (NsqPermissionSet.Authorization authorization : nsqPermissionSet.getAuthorizations()) {
-            assertEquals(Arrays.asList("publish"), authorization.getPermissions());
-        }
+        List<NsqPermissionSet.Authorization> expected = Arrays.asList(
+                new NsqPermissionSet.Authorization(".*", Arrays.asList(".*"), Arrays.asList("publish"))
+        );
+        assertTrue(expected.equals(nsqPermissionSet.getAuthorizations()));
     }
 
     @Test
@@ -126,8 +132,9 @@ public class AuthIT {
         NsqPermissionSet nsqPermissionSet = response.readEntity(NsqPermissionSet.class);
         assertEquals(200, response.getStatus());
         assertEquals("127.0.0.1", nsqPermissionSet.getIdentity());
-        for (NsqPermissionSet.Authorization authorization : nsqPermissionSet.getAuthorizations()) {
-            assertEquals(Arrays.asList("subscribe", "publish"), authorization.getPermissions());
-        }
+        List<NsqPermissionSet.Authorization> expected = Arrays.asList(
+                new NsqPermissionSet.Authorization(".*", Arrays.asList(".*"), Arrays.asList("subscribe", "publish"))
+        );
+        assertTrue(expected.equals(nsqPermissionSet.getAuthorizations()));
     }
 }
