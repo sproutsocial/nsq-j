@@ -102,4 +102,7 @@ the configuration of the `docker-maven-plugin` in the pom.
 
 ## Deployment
 
-TODO: This should use Oak!
+```
+$ oak deploy
+```
+
