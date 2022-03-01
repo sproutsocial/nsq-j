@@ -151,7 +151,7 @@ public class NsqPermissionSet {
 
         NsqPermissionSet nsqPermissionSet = new NsqPermissionSet(
                 authorizations,
-                "", // As far as I can tell, this does not matter
+                "",
                 token.getUsername(),
                 token.getTtl()
         );
