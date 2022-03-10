@@ -78,7 +78,7 @@ public class Subscriber extends BasePubSub {
         }));
     }
 
-    /**
+    /*
      * Subscribe to a topic.
      * If the configured executor is multi-threaded and maxInFlight > 1 (the defaults)
      * then the MessageHandler must be thread safe.
@@ -178,7 +178,7 @@ public class Subscriber extends BasePubSub {
         return defaultMaxInFlight;
     }
 
-    /**
+    /*
      * the maxInFlight to use for new subscriptions
      */
     public synchronized void setDefaultMaxInFlight(int defaultMaxInFlight) {
