@@ -6,7 +6,7 @@
 
     <groupId>com.sproutsocial</groupId>
     <artifactId>nsqauthj</artifactId>
-    <version>0.5.1</version>
+    <version>0.6.0</version>
     <packaging>jar</packaging>
     <name>nsqauthj</name>
 
