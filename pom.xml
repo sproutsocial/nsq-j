@@ -6,12 +6,12 @@
 
     <groupId>com.sproutsocial</groupId>
     <artifactId>nsqauthj</artifactId>
-    <version>0.5.1</version>
+    <version>0.6.0</version>
     <packaging>jar</packaging>
     <name>nsqauthj</name>
 
     <properties>
-        <dropwizard.version>2.0.15</dropwizard.version>
+        <dropwizard.version>2.0.28</dropwizard.version>
         <mainClass>com.sproutsocial.nsqauthj.NsqAuthJApplication</mainClass>
     </properties>
 
@@ -201,7 +201,7 @@
         <dependency>
             <groupId>com.sproutsocial.platform</groupId>
             <artifactId>heartbeater</artifactId>
-            <version>3.0</version>
+            <version>3.2.0</version>
         </dependency>
         <dependency>
             <groupId>com.sproutsocial.platform</groupId>
@@ -243,17 +243,17 @@
     <distributionManagement>
         <repository>
             <id>internal</id>
-            <url>http://nexus.int.sproutsocial.com:8081/nexus/content/repositories/releases/</url>
+            <url>https://nexus.int.sproutsocial.com/nexus/content/repositories/releases/</url>
         </repository>
         <snapshotRepository>
             <id>snapshots</id>
-            <url>http://nexus.int.sproutsocial.com:8081/nexus/content/repositories/snapshots/</url>
+            <url>https://nexus.int.sproutsocial.com/nexus/content/repositories/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
     <repositories>
         <repository>
             <id>internal</id>
-            <url>http://nexus.int.sproutsocial.com:8081/nexus/content/repositories/releases/</url>
+            <url>https://nexus.int.sproutsocial.com/nexus/content/repositories/releases/</url>
             <releases>
                 <enabled>true</enabled>
             </releases>
