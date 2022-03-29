@@ -5,7 +5,6 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
 import com.sproutsocial.configuration.dropwizard.DropwizardConfigCommonsFactoryFactory;
-import com.sproutsocial.nsqauthj.guice.MetricsModule;
 import com.sproutsocial.nsqauthj.guice.TokenValidatorModule;
 import com.sproutsocial.nsqauthj.resources.AuthResource;
 import com.sproutsocial.nsqauthj.resources.PingResource;
@@ -26,20 +25,13 @@ public class NsqAuthJApplication extends Application<NsqAuthJConfiguration> {
     public String getName() { return "nsqauthj"; }
 
     public void initialize(Bootstrap<NsqAuthJConfiguration> bootstrap) {
-        bootstrap.setConfigurationFactoryFactory(new DropwizardConfigCommonsFactoryFactory());
+        bootstrap.setConfigurationFactoryFactory(new DropwizardConfigCommonsFactoryFactory<>());
     }
 
     @Override
     public void run(NsqAuthJConfiguration config, Environment env) {
         Injector injector = Guice.createInjector(
-                new TokenValidatorModule(config),
-                new MetricsModule(config),
-                new AbstractModule() {
-                    @Override
-                    protected void configure() {
-                        bind(Heartbeater.class).to(HeartbeaterImpl.class).in(Singleton.class);
-                    }
-                }
+                new TokenValidatorModule(config)
         );
 
         env.jersey().register(injector.getInstance(AuthResource.class));

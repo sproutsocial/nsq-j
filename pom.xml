@@ -63,7 +63,7 @@
             <plugin>
                 <groupId>io.fabric8</groupId>
                 <artifactId>docker-maven-plugin</artifactId>
-                <version>0.34.1</version>
+                <version>0.38.1</version>
                 <configuration>
                     <showLogs>true</showLogs>
                     <images>
@@ -129,6 +129,33 @@
                         <goals>
                             <goal>stop</goal>
                         </goals>
+                    </execution>
+                    <execution>
+                        <id>docker-deploy</id>
+                        <phase>deploy</phase>
+                        <goals>
+                            <goal>build</goal>
+                            <goal>push</goal>
+                        </goals>
+                        <configuration>
+                            <verbose>true</verbose>
+                            <registry>412335208158.dkr.ecr.us-east-1.amazonaws.com</registry>
+                            <useColor>true</useColor>
+                            <images>
+                                <image>
+                                    <name>nsqauthj</name>
+                                    <build>
+                                        <dockerFile>${project.basedir}/Dockerfile</dockerFile>
+                                        <tags>
+                                            <tag>${project.version}</tag>
+                                            <tag>${git.branch}</tag>
+                                            <tag>${git.revision}</tag>
+                                            <tag>${git.shortRevision}</tag>
+                                        </tags>
+                                    </build>
+                                </image>
+                            </images>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

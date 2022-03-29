@@ -2,6 +2,7 @@ package com.sproutsocial.nsqauthj;
 
 import com.bettercloud.vault.Vault;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.sproutsocial.configuration.heartbeater.HeartbeaterFactory;
 import com.sproutsocial.configuration.metrics.MetricsFactory;
 import com.sproutsocial.nsqauthj.configuration.TokenValidationFactory;
 import com.sproutsocial.nsqauthj.configuration.VaultClientFactory;
@@ -22,6 +23,10 @@ public class NsqAuthJConfiguration extends Configuration {
     @Valid
     @NotNull
     private MetricsFactory metrics;
+
+    @Valid
+    @NotNull
+    private HeartbeaterFactory heartbeaterFactory;
 
     @JsonProperty("vault")
     public VaultClientFactory getVaultClientFactory() {
@@ -51,4 +56,13 @@ public class NsqAuthJConfiguration extends Configuration {
     @JsonProperty("metrics")
     public void setMetrics(MetricsFactory metrics) {
         this.metrics = metrics;
-    }}
+    }
+
+    @JsonProperty("heartbeater")
+    public HeartbeaterFactory getHeartbeaterFactory() { return  heartbeaterFactory; }
+
+    @JsonProperty("heartbeater")
+    public void setHeartbeaterFactory(HeartbeaterFactory heartbeaterFactory) {
+        this.heartbeaterFactory = heartbeaterFactory;
+    }
+}
