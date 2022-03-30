@@ -27,7 +27,7 @@ data:
           level: ALL
           additive: false
           appenders:
-            - type:
+            - type: json
       appenders:
         - type: console
           threshold: ALL
@@ -47,7 +47,9 @@ data:
             timeZone: UTC
             threshold: ALL
             layout:
-              type: access-json
+              type: access-secret-masking-json
+              patterns:
+                - "secret=[^&]*"
       shutdownGracePeriod: 10s
     tokenValidation:
       serviceTokenPath: secret/services/nsq/service-tokens/
