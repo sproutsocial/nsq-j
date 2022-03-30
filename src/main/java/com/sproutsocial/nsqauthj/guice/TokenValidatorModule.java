@@ -13,9 +13,11 @@ import com.sproutsocial.platform.Heartbeater;
 public class TokenValidatorModule extends AbstractModule {
 
     private final NsqAuthJConfiguration config;
+    private MetricRegistry metricRegistry;
 
-    public TokenValidatorModule(final NsqAuthJConfiguration config) {
+    public TokenValidatorModule(final NsqAuthJConfiguration config, MetricRegistry metricRegistry) {
         this.config = config;
+        this.metricRegistry = metricRegistry;
     }
 
     @Provides
@@ -30,8 +32,7 @@ public class TokenValidatorModule extends AbstractModule {
     @Provides
     @Singleton
     public MetricRegistry getMetricRegistry() throws Exception {
-        MetricsFactory metrics = config.getMetrics();
-        return metrics.build();
+        return metricRegistry;
     }
 
     @Provides

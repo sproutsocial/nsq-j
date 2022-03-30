@@ -3,8 +3,8 @@ package com.sproutsocial.nsqauthj;
 import com.bettercloud.vault.Vault;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;
+import com.sproutsocial.nsqauthj.configuration.TokenClientFactory;
 import com.sproutsocial.nsqauthj.configuration.TokenValidationFactory;
-import com.sproutsocial.nsqauthj.configuration.VaultClientFactory;
 import com.sproutsocial.nsqauthj.permissions.NsqPermissionSet;
 import com.sproutsocial.nsqauthj.resources.AuthResource;
 import com.sproutsocial.nsqauthj.validators.VaultTokenValidator;
@@ -42,7 +42,7 @@ public class AuthIT {
         tokenValidationFactory.setUserTokenPath("secret/services/nsq/user-tokens/");
         tokenValidationFactory.setTokenTTL(3600);
 
-        VaultClientFactory.Token vaultClientFactory = new VaultClientFactory.Token();
+        TokenClientFactory vaultClientFactory = new TokenClientFactory();
         vaultClientFactory.setToken("root");
         vaultClientFactory.setAddr("http://127.0.0.1:8200");
         vaultClientFactory.setEngineVersion(2);

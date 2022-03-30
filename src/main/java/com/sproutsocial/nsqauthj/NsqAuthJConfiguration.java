@@ -1,13 +1,12 @@
 package com.sproutsocial.nsqauthj;
 
-import com.bettercloud.vault.Vault;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.sproutsocial.configuration.heartbeater.HeartbeaterFactory;
-import com.sproutsocial.configuration.metrics.MetricsFactory;
 import com.sproutsocial.nsqauthj.configuration.TokenValidationFactory;
 import com.sproutsocial.nsqauthj.configuration.VaultClientFactory;
 import io.dropwizard.Configuration;
 
+import io.dropwizard.health.conf.HealthConfiguration;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
@@ -22,11 +21,12 @@ public class NsqAuthJConfiguration extends Configuration {
 
     @Valid
     @NotNull
-    private MetricsFactory metrics;
+    private HeartbeaterFactory heartbeaterFactory = new HeartbeaterFactory.NoOpHeartbeaterFactory();
 
     @Valid
     @NotNull
-    private HeartbeaterFactory heartbeaterFactory;
+    private HealthConfiguration healthConfiguration = new HealthConfiguration();
+
 
     @JsonProperty("vault")
     public VaultClientFactory getVaultClientFactory() {
@@ -48,16 +48,6 @@ public class NsqAuthJConfiguration extends Configuration {
         this.tokenValidationFactory = tokenValidationFactory;
     }
 
-    @JsonProperty("metrics")
-    public MetricsFactory getMetrics() {
-        return metrics;
-    }
-
-    @JsonProperty("metrics")
-    public void setMetrics(MetricsFactory metrics) {
-        this.metrics = metrics;
-    }
-
     @JsonProperty("heartbeater")
     public HeartbeaterFactory getHeartbeaterFactory() { return  heartbeaterFactory; }
 
@@ -65,4 +55,15 @@ public class NsqAuthJConfiguration extends Configuration {
     public void setHeartbeaterFactory(HeartbeaterFactory heartbeaterFactory) {
         this.heartbeaterFactory = heartbeaterFactory;
     }
+
+    @JsonProperty("health")
+    public HealthConfiguration getHealthConfiguration() {
+        return healthConfiguration;
+    }
+
+    @JsonProperty("health")
+    public void setHealthConfiguration(final HealthConfiguration healthConfiguration) {
+        this.healthConfiguration = healthConfiguration;
+    }
+
 }

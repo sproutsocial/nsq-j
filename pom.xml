@@ -12,6 +12,7 @@
 
     <properties>
         <dropwizard.version>2.0.28</dropwizard.version>
+        <dropwizard-health.version>1.7.1</dropwizard-health.version>
         <mainClass>com.sproutsocial.nsqauthj.NsqAuthJApplication</mainClass>
     </properties>
 
@@ -223,6 +224,15 @@
         <dependency>
             <groupId>com.sproutsocial.configuration</groupId>
             <artifactId>heartbeater</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.dropwizard.modules</groupId>
+            <artifactId>dropwizard-health</artifactId>
+            <version>${dropwizard-health.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.dropwizard</groupId>
+            <artifactId>dropwizard-json-logging</artifactId>
         </dependency>
         <dependency>
             <groupId>com.sproutsocial.platform</groupId>
