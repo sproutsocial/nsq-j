@@ -10,6 +10,7 @@ import java.time.ZoneId;
 import java.util.Map;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -19,18 +20,24 @@ import static org.mockito.Mockito.when;
 
 public class AccessSecretMaskingJsonLayoutTest {
 
-    @Test
-    public void secretMasked() {
+    private LayoutBase<IAccessEvent> layoutBase;
+
+    @BeforeEach
+    public void setUp() {
         LoggerContext context = new LoggerContext();
         AccessSecretMaskingJsonLayoutFactory factory = new AccessSecretMaskingJsonLayoutFactory();
         factory.setPatterns(ImmutableList.of(Pattern.compile("secret=[^&]*")));
+        layoutBase = factory.build(context, TimeZone.getTimeZone(ZoneId.systemDefault()));
+    }
 
-        LayoutBase<IAccessEvent> layoutBase = factory.build(context, TimeZone.getTimeZone(ZoneId.systemDefault()));
-
+    @Test
+    public void factoryMakesAAccessSecretMaskingJsonLayout() {
         assertTrue(layoutBase instanceof AccessSecretMaskingJsonLayout);
+    }
 
+    @Test
+    public void secretMasked() {
         AccessSecretMaskingJsonLayout layout = (AccessSecretMaskingJsonLayout) layoutBase;
-
         IAccessEvent event = mock(IAccessEvent.class);
         when(event.getRequestURI()).thenReturn("/auth?remote=blah&secret=shhhh&tls=false");
         Map<String, Object> jsonMap = layout.toJsonMap(event);
@@ -38,17 +45,17 @@ public class AccessSecretMaskingJsonLayoutTest {
     }
 
     @Test
-    public void nonSecretLeftAlone() {
-        LoggerContext context = new LoggerContext();
-        AccessSecretMaskingJsonLayoutFactory factory = new AccessSecretMaskingJsonLayoutFactory();
-        factory.setPatterns(ImmutableList.of(Pattern.compile("secret=[^&]*")));
-
-        LayoutBase<IAccessEvent> layoutBase = factory.build(context, TimeZone.getTimeZone(ZoneId.systemDefault()));
-
-        assertTrue(layoutBase instanceof AccessSecretMaskingJsonLayout);
-
+    public void multipleSecretsMasked() {
         AccessSecretMaskingJsonLayout layout = (AccessSecretMaskingJsonLayout) layoutBase;
+        IAccessEvent event = mock(IAccessEvent.class);
+        when(event.getRequestURI()).thenReturn("/auth?remote=blah&secret=shhhh&tls=false&secret=hush");
+        Map<String, Object> jsonMap = layout.toJsonMap(event);
+        assertEquals("/auth?remote=blah&<REDACTED>&tls=false&<REDACTED>", jsonMap.get("uri"));
+    }
 
+    @Test
+    public void nonSecretLeftAlone() {
+        AccessSecretMaskingJsonLayout layout = (AccessSecretMaskingJsonLayout) layoutBase;
         IAccessEvent event = mock(IAccessEvent.class);
         when(event.getRequestURI()).thenReturn("/auth?remote=blah&quiet=shhhh&tls=false");
         Map<String, Object> jsonMap = layout.toJsonMap(event);

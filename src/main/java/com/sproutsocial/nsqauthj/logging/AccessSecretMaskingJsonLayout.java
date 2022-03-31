@@ -54,17 +54,8 @@ public class AccessSecretMaskingJsonLayout extends AccessJsonLayout {
     private String redact(String value) {
         String current = value;
         for (Pattern pattern : patterns) {
-            final StringBuilder builder = new StringBuilder();
-            int lastIndex = 0;
             Matcher matcher = pattern.matcher(value);
-            while (matcher.find()) {
-                builder.append(current, lastIndex, matcher.start()).append("<REDACTED>");
-                lastIndex = matcher.end();
-            }
-            if (lastIndex < current.length()) {
-                builder.append(current, lastIndex, current.length());
-            }
-            current = builder.toString();
+            current = matcher.replaceAll("<REDACTED>");
         }
         return current;
     }
