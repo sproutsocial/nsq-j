@@ -31,6 +31,8 @@ data:
             - type: console
               layout:
                 type: json
+                customFieldNames:
+                  - tags: ["audit", "sensitive"]
       appenders:
         - type: console
           threshold: ALL
@@ -51,6 +53,8 @@ data:
             threshold: ALL
             layout:
               type: access-secret-masking-json
+              customFieldNames:
+                - tags: ["audit", "sensitive"]
               patterns:
                 - "secret=[^&]*"
       shutdownGracePeriod: 10s
