@@ -148,7 +148,7 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
 spec:
   selector:
-    app: airlock
+    app: nsqauthj
   ports:
     - name: prod
       port: 4181
