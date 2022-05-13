@@ -27,7 +27,9 @@ data:
           level: ALL
           additive: false
           appenders:
-            - type: json
+            - type: console
+              layout:
+                type: json
       appenders:
         - type: console
           threshold: ALL
