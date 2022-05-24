@@ -8,14 +8,14 @@ nsqd-client-finder
     "platform_service_token_from_vault_2022": [
         "prod-data-ingest-useast1a-02",
         "k8s-pod-sage-engine",
-				<etc>
-		],
-		"platform_service_token_from_vault_2021": [
-				"k8s-pod-instagram-attribution",
-				"k8s-pod-fb-pm-attachment-storage",
-				"prod-inbox-bus-useast1a-02",
-				<etc>
-		]
+        <etc>
+    ],
+    "platform_service_token_from_vault_2021": [
+        "k8s-pod-instagram-attribution",
+        "k8s-pod-fb-pm-attachment-storage",
+        "prod-inbox-bus-useast1a-02",
+        <etc>
+    ]
 }
 ```
 
@@ -37,8 +37,8 @@ Display nsqd connected client information.
 
 optional arguments:
   -h, --help            show this help message and exit
-	  --nsq-lookupd-address NSQ_LOOKUPD_ADDRESS
-		                        nsq-lookupd address to query (defaults to http://prod-nsq-lookup-useast1b-201:4161)
+    --nsq-lookupd-address NSQ_LOOKUPD_ADDRESS
+                            nsq-lookupd address to query (defaults to http://prod-nsq-lookup-useast1b-201:4161)
 ```
 
 To run the application, do the following
