@@ -213,7 +213,7 @@ pipeline {
                     }
 
                     if (params.slack_channel) {
-                        if (STATUS == 0) {
+                        if (status == 0) {
                             slackSend(channel: slackChannel, message: "*${buildUser}'s* deploy of nsqauthj ${nsqauthjImage}* to k8s-infra-platform was successful.", color: "good")
                         } else {
                             slackSend(channel: slackChannel, message: "*${buildUser}'s* deploy of nsqauthj ${nsqauthjImage}* to k8s-infra-platform failed.", color: "bad")
