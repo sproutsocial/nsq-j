@@ -14,7 +14,10 @@ def buildUser;
 
 def getBuildUser() {
     // relies on the build user vars plugin we've installed
-    return env.BUILD_USER_ID
+    wrap([$class: 'BuildUser']) {
+        return env.BUILD_USER_ID
+    }
+
 }
 
 
@@ -54,6 +57,7 @@ def getPatches(deployments, String imageTag, String buildNumber) {
             "kind": "Deployment",
             "metadata": [
                 "name": "${deploymentName}",
+                "namespace": "admin",
                 "labels": [
                     "tags.datadoghq.com/env": "production",
                     "tags.datadoghq.com/service": "${deploymentName}",
