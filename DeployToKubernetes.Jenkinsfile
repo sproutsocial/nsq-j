@@ -162,7 +162,7 @@ pipeline {
                         """
 
                     // Filter out Deployment resources, write a matching patch
-                    def deployment = getDeployment(file)
+                    def deployments = getDeployments(file)
                     def patches = getPatches(deployments, params.image_tag, env.BUILD_NUMBER)
                     def patchPaths = []
 
