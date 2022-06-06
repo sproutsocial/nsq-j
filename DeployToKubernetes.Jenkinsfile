@@ -180,6 +180,8 @@ pipeline {
                     kustomizeData['resources'] = files
                     kustomizeData['patches'] = patchPaths.collect { ["path": "${it}" ] }
 
+                    writeYaml(file: 'kustomization.yaml', data: kustomizeData, overwrite: true)
+
                     // Let's dance: Apply customizations to the infra platform K8s cluster
                     withKubeConfig([credentialsId: "k8s-infra-platform-kubeconfig-file", namespace: "admin"]) {
                         sh "kubectl config view"
