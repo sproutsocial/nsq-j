@@ -21,7 +21,7 @@ data:
           host: carbon-useast1.int.sproutsocial.com
           port: 2003
     logging:
-      level: INFO
+      level: DEBUG
       loggers:
         com.sproutsocial.nsqauthj: INFO
         NsqPermissionAudit:
