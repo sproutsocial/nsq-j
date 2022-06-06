@@ -18,7 +18,6 @@ def getBuildUser() {
 
 
 def validateImageExists(String imageName, String imageTag) {
-    echo getOakMessage("validating_image", params.image_name, cluster)
     def parts = imageName.split('.dkr.ecr.us-east-1.amazonaws.com/')
     if (parts.length < 2) {
         error("Invalid image_name ${imageName}. Please use the fulll image name included the registry URL")
@@ -26,7 +25,6 @@ def validateImageExists(String imageName, String imageTag) {
     def registryId = parts[0]
     def repositoryName = parts[1]
     if (0 != sh(script: "aws --region us-east-1 ecr describe-images --registry-id ${registryId} --repository-name ${repositoryName} --image-ids imageTag=${imageTag}", returnStatus: true)) {
-        echo getOakMessage("image_validation_failed", params.image_name, cluster)
         error("Image ${imageName}:${imageTag} does not exist")
     }
 }
@@ -212,13 +210,11 @@ pipeline {
                         }
                     }
 
-                    if (params.slack_channel) {
-                        if (STATUS == 0) {
-                            slackSend(channel: slackChannel, message: "*${buildUser}'s* deploy of nsqauthj ${nsqauthjImage}* to k8s-infra-platform was successful.", color: "good")
-                        } else {
-                            slackSend(channel: slackChannel, message: "*${buildUser}'s* deploy of nsqauthj ${nsqauthjImage}* to k8s-infra-platform failed.", color: "bad")
-                            error("kubectl rollout status returned non-zero exit code ${status}")
-                        }
+                    if (STATUS == 0) {
+                        slackSend(channel: slackChannel, message: "*${buildUser}'s* deploy of nsqauthj ${nsqauthjImage}* to k8s-infra-platform was successful.", color: "good")
+                    } else {
+                        slackSend(channel: slackChannel, message: "*${buildUser}'s* deploy of nsqauthj ${nsqauthjImage}* to k8s-infra-platform failed.", color: "bad")
+                        error("kubectl rollout status returned non-zero exit code ${status}")
                     }
                 }
             }
