@@ -116,6 +116,7 @@ spec:
             '-Dcommons.config=yaml:/srv/nsqauthj/configs/config.yaml',
             '-jar',
             'nsqauthj.jar'
+            'server'
           ]
           resources:
             requests:
