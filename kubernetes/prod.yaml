@@ -31,8 +31,8 @@ data:
             - type: console
               layout:
                 type: json
-                customFieldNames:
-                  - tags: ["audit", "sensitive"]
+                additionalFields:
+                  tags: ["audit", "sensitive"]
       appenders:
         - type: console
           threshold: ALL
@@ -53,8 +53,8 @@ data:
             threshold: ALL
             layout:
               type: access-secret-masking-json
-              customFieldNames:
-                - tags: ["audit", "sensitive"]
+              additionalFields:
+                tags: ["audit", "sensitive"]
               patterns:
                 - "secret=[^&]*"
       shutdownGracePeriod: 10s
@@ -80,7 +80,7 @@ metadata:
   labels:
     app: nsqauthj
 spec:
-  replicas: 3
+  replicas: 2
   selector:
     matchLabels:
       app: nsqauthj
@@ -96,7 +96,7 @@ spec:
         json-logging: structured
         version: ${IMAGE_TAG}
     spec:
-      serviceAccountName: vault-auth
+#      serviceAccountName: vault-auth
       volumes:
         - name: nsqauthj-configuration
           configMap:
@@ -115,7 +115,8 @@ spec:
             '-Dcom.sun.management.jmxremote.rmi.port=22978',
             '-Dcommons.config=yaml:/srv/nsqauthj/configs/config.yaml',
             '-jar',
-            'nsqauthj.jar'
+            'nsqauthj.jar',
+            'server'
           ]
           resources:
             requests:
