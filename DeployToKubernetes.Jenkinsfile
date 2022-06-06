@@ -11,9 +11,10 @@ def slackChannel = "#eng-dbre"
 
 def buildUser;
 
-@NonCPS
+
 def getBuildUser() {
-    return currentBuild.rawBuild.getCause(Cause.UserIdCause).getUserId()
+    // relies on the build user vars plugin we've installed
+    return env.BUILD_USER_ID
 }
 
 
