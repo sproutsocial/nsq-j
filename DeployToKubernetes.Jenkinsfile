@@ -17,7 +17,6 @@ def getBuildUser() {
     wrap([$class: 'BuildUser']) {
         return env.BUILD_USER_ID
     }
-
 }
 
 
