@@ -115,7 +115,8 @@ spec:
             '-Dcom.sun.management.jmxremote.rmi.port=22978',
             '-Dcommons.config=yaml:/srv/nsqauthj/configs/config.yaml',
             '-jar',
-            'nsqauthj.jar'
+            'nsqauthj.jar',
+            'nsqauthj.jar',
             'server'
           ]
           resources:
