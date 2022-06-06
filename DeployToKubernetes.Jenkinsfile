@@ -155,6 +155,7 @@ pipeline {
 
                     // substitute in image_tag and build_number
                     def file = "kubernetes/prod.yaml"
+                    def files = [file]
                     echo "envsubst against ${file}"
                     sh """#!/usr/bin/env bash
                         IMAGE_TAG=${params.image_tag} BUILD_NUMBER=${env.BUILD_NUMBER} envsubst '\${IMAGE_TAG}\${BUILD_NUMBER}' < ${file} > subbed.txt
