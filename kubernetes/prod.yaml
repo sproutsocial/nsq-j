@@ -5,7 +5,7 @@ metadata:
   namespace: admin
 data:
   config.yaml: |
-    healthConfiguration:
+    health:
       delayedShutdownHandlerEnabled: true
       shutdownWaitPeriod: 15s
     heartbeater:
