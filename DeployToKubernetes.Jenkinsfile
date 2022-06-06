@@ -194,7 +194,7 @@ pipeline {
                     def eventBody = "${buildUser} deploy ${nsqauthjImage}:${params.image_tag} image to k8s-infra-platform Kubernetes Cluster"
                     sh "echo ${eventBody}"
                     sh "curl -H \"content-type: application/json\" " +
-                        "-d '{\"what\":\"${eventBody}\",\"tags\":[\"${nsqauthjImage}\",\"deploy"],\"data\":\"\"}' " +
+                        "-d '{\"what\":\"${eventBody}\",\"tags\":[\"${nsqauthjImage}\",\"deploy\"],\"data\":\"\"}' " +
                         "${graphiteUrl}"
                     sh "echo Getting status of deployment"
 
