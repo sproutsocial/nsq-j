@@ -65,7 +65,7 @@ data:
       failOpen: false
     vault:
       type: jwt
-      authPath: k8s-
+      authPath: k8s-infra-platform-admin
       role: nsqauthj
       addr: https://vault.int.sproutsocial.com
       engineVersion: 2
