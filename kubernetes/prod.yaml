@@ -121,10 +121,10 @@ spec:
           resources:
             requests:
               memory: "350M"
-              cpu: "500m"
+              cpu: "250m"
             limits:
               memory: "700M"
-              cpu: "1.5"
+              cpu: "500m"
           ports:
             - containerPort: 4181
               name: nsqauthj
