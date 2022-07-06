@@ -121,32 +121,36 @@ spec:
           resources:
             requests:
               memory: "350M"
+              cpu: "500m"
             limits:
               memory: "700M"
+              cpu: "1.5"
           ports:
             - containerPort: 4181
-              name: nsqauthd
+              name: nsqauthj
             - containerPort: 22978
               name: jmx
           livenessProbe:
             httpGet:
               path: /health-check?type=alive
-              port: nsqauthd
+              port: nsqauthj
             periodSeconds: 10
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /health-check?type=ready
-              port: nsqauthd
+              port: nsqauthj
             periodSeconds: 5
             failureThreshold: 2
-            initialDelaySeconds: 45
+            initialDelaySeconds: 60
           startupProbe:
             httpGet:
               path: /health-check?type=ready
-              port: nsqauthd
+              port: nsqauthj
             failureThreshold: 12
-            periodSeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            initialDelaySeconds: 30
           volumeMounts:
             - name: nsqauthj-configuration
               mountPath: '/srv/nsqauthj/configs/'
@@ -167,5 +171,5 @@ spec:
   ports:
     - name: prod
       port: 4181
-      targetPort: nsqauthd
+      targetPort: nsqauthj
   type: LoadBalancer
