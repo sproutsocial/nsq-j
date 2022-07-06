@@ -96,7 +96,7 @@ spec:
         json-logging: structured
         version: ${IMAGE_TAG}
     spec:
-#      serviceAccountName: vault-auth
+      serviceAccountName: vault-auth
       volumes:
         - name: nsqauthj-configuration
           configMap:
