@@ -11,7 +11,7 @@ import static org.junit.Assert.assertEquals;
 
 //run one test: mvn "-Dit.test=PublishIT#testSnappy" verify
 
-public class RoundRobbinIT extends SubscribeBase {
+public class RoundRobinIT extends SubscribeBase {
 
     public static final String PUBTEST = "pubtest";
     public static final String MPUBTEST = "mpubtest";
@@ -112,7 +112,7 @@ public class RoundRobbinIT extends SubscribeBase {
 
         Util.sleepQuietly(1000);
 
-        //With round robbin, messages may arrive out of order.
+        //With round robin, messages may arrive out of order.
         Collections.sort(received, new Comparator<String>() {
             @Override
             public int compare(String s, String anotherString) {

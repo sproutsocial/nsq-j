@@ -44,12 +44,12 @@ If a failover host is provided, it will be used when messages are not able to be
 After a time period of 5 minutes, the next publish will attempt to reconnect to the primary. 
 If you wish to change this failback timer, simply use `Publisher#setFailoverDurationSecs`.  
 
-### Round robin publishing
+### Round-robin publishing
 
 ```java
 Publisher publisher = new Publisher("nsqd-host-1:4150,nsqd-host-2:4150,nsqd-host-3:4150");
 ```
-We support round robin publishing with a simple configuration change.  Providing a comma 
+We support round-robin publishing with a simple configuration change.  Providing a comma 
 separated list of hosts for either the primary or failover host fields will activate round robin publishing. 
 
 Round robin works by rotation thru all unique host+ports that are configured.  If a publish fails, the connection 
