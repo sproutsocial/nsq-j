@@ -35,6 +35,33 @@ after nsqd responds `OK`
 You can batch messages manually and publish them all at once with
 `publish(String topic, List<byte[]> messages)`
 
+### Failover publishing
+```java
+Publisher publisher = new Publisher("nsqd-host", "nsqd-failover-host");
+```
+If a failover host is provided, it will be used when messages are not able to be written to the primary.  
+
+After a time period of 5 minutes, the next publish will attempt to reconnect to the primary. 
+If you wish to change this failback timer, simply use `Publisher#setFailoverDurationSecs`.  
+
+### Round robin publishing
+
+```java
+Publisher publisher = new Publisher("nsqd-host-1:4150,nsqd-host-2:4150,nsqd-host-3:4150");
+```
+We support round robin publishing with a simple configuration change.  Providing a comma 
+separated list of hosts for either the primary or failover host fields will activate round robin publishing. 
+
+Round robin works by rotation thru all unique host+ports that are configured.  If a publish fails, the connection 
+is closed and the host is marked as failed for 5 minutes.  After that time, it will try to reconnect to that host.  
+A failed publish will be retried until all hosts are marked as failed.  
+
+You can adjust the failed timer by using `Publisher#setFailoverDurationSecs`.
+
+Round Robin publishing is appropriate for use cases where nsqd is deployed on a different host than the publisher.
+This is most comon in autoscaling or ephemeral environemnts.  In such cases its desirable to both have 
+well scaled, persistent nsq infrastructure and a single configuration that will make use of that hardware.   
+
 ## Subscribe
 ```java
 public class PubExample {

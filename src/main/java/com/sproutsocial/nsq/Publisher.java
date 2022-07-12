@@ -18,13 +18,8 @@ import static com.sproutsocial.nsq.Util.checkNotNull;
 
 @ThreadSafe
 public class Publisher extends BasePubSub {
+    private final PublisherInterface delegate;
 
-    private final HostAndPort nsqd;
-    private final HostAndPort failoverNsqd;
-    private PubConnection con;
-    private boolean isFailover = false;
-    private long failoverStart;
-    private int failoverDurationSecs = 300;
     private final Map<String, Batcher> batchers = new HashMap<String, Batcher>();
     private ScheduledExecutorService batchExecutor;
 
@@ -33,10 +28,26 @@ public class Publisher extends BasePubSub {
 
     private static final Logger logger = LoggerFactory.getLogger(Publisher.class);
 
+    /**
+     *
+     * @param client a Client object
+     * @param nsqd Either a singular NSQD hostname and port in the form of "hostname:port" or
+     *             a comma separated list of NSQD instances like "host1:123,host2:123".  If
+     *             a comma separated list is provided, that will enable round robin publishing.
+     *             Each call to a publish method will rotate to the next alive nsqd.  If you are
+     *             round robin publishing, messages may be delivered out of order to downstream
+     *             clients.
+     * @param failoverNsqd Null or a singular NSQD hostname to use as a backup or a comma separated list
+     *                     of more NSQD hosts to include in the round robin pool.  If a comma seperated
+     *                     list is provided, round robin publishing will be enabled.
+     */
     public Publisher(Client client, String nsqd, String failoverNsqd) {
         super(client);
-        this.nsqd = HostAndPort.fromString(nsqd).withDefaultPort(4150);
-        this.failoverNsqd = failoverNsqd != null ? HostAndPort.fromString(failoverNsqd).withDefaultPort(4150) : null;
+        if (nsqd.contains(",") || (failoverNsqd != null && failoverNsqd.contains(","))) {
+            delegate = new RoundRobinPublisher(client, nsqd, failoverNsqd, this);
+        }else {
+            delegate = new FailoverPublisher(client, nsqd, failoverNsqd, this);
+        }
         client.addPublisher(this);
     }
 
@@ -48,113 +59,21 @@ public class Publisher extends BasePubSub {
         this(nsqd, null);
     }
 
-    @GuardedBy("this")
-    private void checkConnection() throws IOException {
-        if (con == null) {
-            if (isStopping) {
-                throw new NSQException("publisher stopped");
-            }
-            connect(nsqd);
-        }
-        else if (isFailover && Util.clock() - failoverStart > failoverDurationSecs * 1000) {
-            isFailover = false;
-            connect(nsqd);
-            logger.info("using primary nsqd");
-        }
-    }
-
-    @GuardedBy("this")
-    private void connect(HostAndPort host) throws IOException {
-        if (con != null) {
-            con.close();
-        }
-        con = new PubConnection(client, host, this);
-        try {
-            con.connect(config);
-        }
-        catch(IOException e) {
-            con.close();
-            con = null;
-            throw e;
-        }
-        logger.info("publisher connected:{}", host);
-    }
 
     public synchronized void connectionClosed(PubConnection closedCon) {
-        if (con == closedCon) {
-            con = null;
-            logger.debug("removed closed publisher connection:{}", closedCon.getHost());
-        }
+        delegate.connectionClosed(closedCon);
     }
 
     public synchronized void publish(String topic, byte[] data) {
-        checkNotNull(topic);
-        checkNotNull(data);
-        checkArgument(data.length > 0);
-        try {
-            checkConnection();
-            con.publish(topic, data);
-        }
-        catch (Exception e) {
-            logger.error("publish error with:{}", isFailover ? failoverNsqd : nsqd, e);
-            publishFailover(topic, data);
-        }
+        delegate.publish(topic, data);
     }
 
     public synchronized void publishDeferred(String topic, byte[] data, long delay, TimeUnit unit) {
-        checkNotNull(topic);
-        checkNotNull(data);
-        checkArgument(data.length > 0);
-        checkArgument(delay > 0);
-        checkNotNull(unit);
-        try {
-            checkConnection();
-            con.publishDeferred(topic, data, unit.toMillis(delay));
-        }
-        catch (Exception e) {
-            //deferred publish never fails over
-            throw new NSQException("deferred publish failed", e);
-        }
+        delegate.publishDeferred(topic, data, delay, unit);
     }
 
     public synchronized void publish(String topic, List<byte[]> dataList) {
-        checkNotNull(topic);
-        checkNotNull(dataList);
-        checkArgument(dataList.size() > 0);
-        try {
-            checkConnection();
-            con.publish(topic, dataList);
-        }
-        catch (Exception e) {
-            logger.error("publish error with:{}", isFailover ? failoverNsqd : nsqd, e);
-            for (byte[] data : dataList) {
-                publishFailover(topic, data);
-            }
-        }
-    }
-
-    @GuardedBy("this")
-    private void publishFailover(String topic, byte[] data) {
-        try {
-            if (failoverNsqd == null) {
-                logger.warn("publish failed but no failoverNsqd configured. Will wait and retry once.");
-                Util.sleepQuietly(10000); //could do exponential backoff or make configurable
-                connect(nsqd);
-            }
-            else if (!isFailover) {
-                failoverStart = Util.clock();
-                isFailover = true;
-                connect(failoverNsqd);
-                logger.info("using failover nsqd:{}", failoverNsqd);
-            }
-            con.publish(topic, data);
-        }
-        catch (Exception e) {
-            Util.closeQuietly(con);
-            con = null;
-            isFailover = false;
-            throw new NSQException("publish failed", e);
-        }
+        delegate.publish(topic, dataList);
     }
 
     public synchronized void publishBuffered(String topic, byte[] data) {
@@ -191,22 +110,21 @@ public class Publisher extends BasePubSub {
             batcher.sendBatch();
         }
         super.stop();
-        Util.closeQuietly(con);
-        con = null;
         if (batchExecutor != null) {
             Util.shutdownAndAwaitTermination(batchExecutor, 40, TimeUnit.MILLISECONDS);
         }
         if (client.isLonePublisher(this)) { // convenience, prevents needing to call client.stop() to stop all threads
             Util.shutdownAndAwaitTermination(client.getSchedExecutor(), 40, TimeUnit.MILLISECONDS);
         }
+        delegate.stop();
     }
 
     public synchronized int getFailoverDurationSecs() {
-        return failoverDurationSecs;
+        return delegate.getFailoverDurationSecs();
     }
 
     public synchronized void setFailoverDurationSecs(int failoverDurationSecs) {
-        this.failoverDurationSecs = failoverDurationSecs;
+        delegate.setFailoverDurationSecs(failoverDurationSecs);
     }
 
 }
