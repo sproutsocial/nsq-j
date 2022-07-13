@@ -2,31 +2,28 @@ package com.sproutsocial.nsqauthj.configuration;
 
 import com.bettercloud.vault.Vault;
 import com.bettercloud.vault.VaultConfig;
+import com.bettercloud.vault.VaultException;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import javax.validation.constraints.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class AbstractVaultClientFactory implements VaultClientFactory {
+
+    private static Logger logger = LoggerFactory.getLogger(VaultClientFactory.class);
+
+    private VaultTokenRenewer tokenRenewer = null;
 
     @NotNull
     private String addr;
 
     private int engineVersion = 2;
 
-
     @NotNull
     private int openTimeout = 5;
 
     @NotNull
     private int readTimeout = 5;
-
-    @NotNull
-    private boolean renewable = false;
-
-    @NotNull
-    private int renewInterval = 3600; // renew once an hour
 
     abstract String getToken() throws Exception;
 
@@ -42,17 +39,18 @@ public abstract class AbstractVaultClientFactory implements VaultClientFactory {
                 .readTimeout(readTimeout)
                 .build();
         Vault vault = new Vault(config, engineVersion);
-        if (renewable) {
-            startRenewingToken(token, vault);
-        }
+        startRenewingToken(vault);
         return vault;
     }
 
-    protected void startRenewingToken(String token, Vault vault) {
-        ScheduledExecutorService executorService = Executors
-                .newSingleThreadScheduledExecutor();
-        VaultTokenRenewer renewer = new VaultTokenRenewer(token, vault, getRenewInterval());
-        executorService.scheduleAtFixedRate(renewer::renewToken, renewInterval, renewInterval, TimeUnit.SECONDS);
+    protected void startRenewingToken(Vault vault) {
+        try {
+            tokenRenewer = new VaultTokenRenewer(vault);
+            tokenRenewer.startRenewing();
+        }
+        catch (VaultException e) {
+            logger.error("Unable to set up token renewal scheduler!", e);
+        }
 
     }
 
@@ -96,21 +94,4 @@ public abstract class AbstractVaultClientFactory implements VaultClientFactory {
         this.readTimeout = readTimeout;
     }
 
-    public boolean isRenewable() {
-        return renewable;
-    }
-
-    @JsonProperty
-    public void setRenewable(boolean renewable) {
-        this.renewable = renewable;
-    }
-
-    public int getRenewInterval() {
-        return renewInterval;
-    }
-
-    @JsonProperty
-    public void setRenewInterval(int renewInterval) {
-        this.renewInterval = renewInterval;
-    }
 }
