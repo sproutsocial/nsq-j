@@ -1,13 +1,10 @@
 package com.sproutsocial.nsq;
 
 import net.jcip.annotations.ThreadSafe;
-import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static org.slf4j.LoggerFactory.getLogger;
 
 @ThreadSafe
 public class RoundRobbinBallenceStrategy extends ListBasedBallenceStrategy implements BalanceStrategy {
@@ -18,9 +15,10 @@ public class RoundRobbinBallenceStrategy extends ListBasedBallenceStrategy imple
     }
 
     private static List<String> getHostNames(String nsqd, String failoverNsqd) {
-        List<String> out = new ArrayList<>();
-        out.addAll(Arrays.asList(nsqd.split(",")));
-        out.addAll(Arrays.asList(failoverNsqd.split(",")));
+        List<String> out = new ArrayList<>(Arrays.asList(nsqd.split(",")));
+        if (failoverNsqd != null) {
+            out.addAll(Arrays.asList(failoverNsqd.split(",")));
+        }
         return out;
     }
 

@@ -1,9 +1,12 @@
 package com.sproutsocial.nsq;
 
-import java.io.IOException;
+import static com.sproutsocial.nsq.Util.checkNotNull;
 
 public interface BalanceStrategy {
     static BalanceStrategy build(String nsqd, String failoverNsqd, Publisher parent, Client client) {
+        checkNotNull(nsqd);
+        checkNotNull(parent);
+        checkNotNull(client);
         if (nsqd.contains(",")) {
             return new RoundRobbinBallenceStrategy(client, parent, nsqd, failoverNsqd);
         } else if (failoverNsqd == null) {
