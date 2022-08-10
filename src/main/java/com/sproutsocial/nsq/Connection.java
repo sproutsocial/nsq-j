@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 import java.util.zip.Inflater;
@@ -23,12 +24,19 @@ import java.util.zip.InflaterInputStream;
 import static com.sproutsocial.nsq.Util.firstNonNull;
 
 abstract class Connection extends BasePubSub implements Closeable {
+    protected enum State {
+        NEW,
+        ESTABLISHED,
+        CLOSED,
+        FAILURE_BACKOFF,
+    }
 
     protected final HostAndPort host;
 
     protected DataOutputStream out;
     protected DataInputStream in;
     private volatile boolean isReading = true;
+    protected final AtomicReference<State> connectionState;
 
     protected int msgTimeout = 60000;
     protected int heartbeatInterval = 30000;
@@ -51,6 +59,7 @@ abstract class Connection extends BasePubSub implements Closeable {
         super(client);
         this.host = host;
         this.handlerExecutor = client.getExecutor();
+        this.connectionState = new AtomicReference<>(State.NEW);
     }
 
     public synchronized void connect(Config config) throws IOException {
@@ -94,6 +103,7 @@ abstract class Connection extends BasePubSub implements Closeable {
                 read();
             }
         }).start();
+        connectionState.set(State.ESTABLISHED);
     }
 
     private String connectCommand(String command, byte[] data) throws IOException {
@@ -333,10 +343,15 @@ abstract class Connection extends BasePubSub implements Closeable {
         Util.closeQuietly(in);
         cancelTasks();
         logger.debug("connection closed:{}", toString());
+        connectionState.set(State.CLOSED);
     }
 
     public HostAndPort getHost() {
         return host;
+    }
+
+    public State getConnectionState() {
+        return connectionState.get();
     }
 
     public synchronized String stateDesc() {
