@@ -59,6 +59,7 @@ public class Publisher extends BasePubSub {
         else if (isFailover && Util.clock() - failoverStart > failoverDurationSecs * 1000) {
             isFailover = false;
             connect(nsqd);
+            con.retryConnection();
             logger.info("using primary nsqd");
         }
     }
@@ -142,7 +143,7 @@ public class Publisher extends BasePubSub {
                 connect(nsqd);
             }
             else if (!isFailover) {
-                failoverStart = Util.clock();
+                con.failConnectionFor(failoverDurationSecs);
                 isFailover = true;
                 connect(failoverNsqd);
                 logger.info("using failover nsqd:{}", failoverNsqd);

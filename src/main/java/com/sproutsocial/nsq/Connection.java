@@ -13,6 +13,7 @@ import java.net.Socket;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -25,10 +26,42 @@ import static com.sproutsocial.nsq.Util.firstNonNull;
 
 abstract class Connection extends BasePubSub implements Closeable {
     protected enum State {
+        /**
+         * Initialization state: The connection has been instantiated, but has not yet attempted to connect
+         * to an underlying host.
+         */
         NEW,
+
+        /**
+         * The connection has been established to the underlying host, and was last known to be 'healthy'.
+         */
         ESTABLISHED,
+
+        /**
+         * The connection has been explicitly closed, and should not be used.
+         */
         CLOSED,
+
+        /**
+         * The connection has been marked in a 'failure' state. The connection will eventually come out of
+         * failure / backoff, but should not be used for publishing or subscribing at the moment.
+         */
         FAILURE_BACKOFF,
+    }
+
+    protected class FailureState {
+        private final long startTimestamp;
+        private final long durationSecs;
+
+        public FailureState(final long startTimestamp,
+                            final long durationSecs) {
+            this.startTimestamp = startTimestamp;
+            this.durationSecs = durationSecs;
+        }
+
+        public boolean isReadyForRetry(final long currentTimestampMs) {
+            return (currentTimestampMs - startTimestamp) > durationSecs * 1000;
+        }
     }
 
     protected final HostAndPort host;
@@ -36,7 +69,9 @@ abstract class Connection extends BasePubSub implements Closeable {
     protected DataOutputStream out;
     protected DataInputStream in;
     private volatile boolean isReading = true;
+    // TODO: Think about concurrency control for these.
     protected final AtomicReference<State> connectionState;
+    protected final AtomicReference<Optional<FailureState>> failureState;
 
     protected int msgTimeout = 60000;
     protected int heartbeatInterval = 30000;
@@ -60,6 +95,7 @@ abstract class Connection extends BasePubSub implements Closeable {
         this.host = host;
         this.handlerExecutor = client.getExecutor();
         this.connectionState = new AtomicReference<>(State.NEW);
+        this.failureState = new AtomicReference<>(Optional.empty());
     }
 
     public synchronized void connect(Config config) throws IOException {
@@ -352,6 +388,20 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     public State getConnectionState() {
         return connectionState.get();
+    }
+
+    public boolean isReadyForRetry() {
+        return failureState.get().map(f -> f.isReadyForRetry(Util.clock())).orElse(false);
+    }
+
+    public void failConnectionFor(final long durationMs) {
+        connectionState.set(State.FAILURE_BACKOFF);
+        failureState.set(Optional.of(new FailureState(Util.clock(), durationMs)));
+    }
+
+    public void retryConnection() {
+        connectionState.set(State.ESTABLISHED);
+        failureState.set(Optional.empty());
     }
 
     public synchronized String stateDesc() {
