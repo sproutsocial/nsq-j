@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static com.sproutsocial.nsq.Util.checkArgument;
 import static com.sproutsocial.nsq.Util.checkNotNull;
@@ -82,20 +83,13 @@ public class Publisher extends BasePubSub {
         checkNotNull(data);
         checkArgument(data.length > 0);
 
-        PubConnection connection = null;
-        while (true) {
-            try {
-                connection = balanceStrategy.getConnectionFrom(pool)
-                    .orElseThrow(() -> new NSQException("All publisher connections exhausted, failing to publish message"));
-                connection.publish(topic, data);
-                return;
-            } catch (Exception e) {
-                if (connection != null) {
-                    connection.failConnectionFor(failoverDurationSecs);
-                    logger.info("Marking connection as failed and trying the next available: {}", connection);
+        withConnection(conn -> {
+                try {
+                    conn.publish(topic, data);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
-            }
-        }
+            });
     }
 
     public synchronized void publishDeferred(String topic, byte[] data, long delay, TimeUnit unit) {
@@ -105,20 +99,13 @@ public class Publisher extends BasePubSub {
         checkArgument(delay > 0);
         checkNotNull(unit);
 
-        PubConnection connection = null;
-        while (true) {
-            try {
-                connection = balanceStrategy.getConnectionFrom(pool)
-                    .orElseThrow(() -> new NSQException("All publisher connections exhausted, failing to publish message"));
-                connection.publishDeferred(topic, data, unit.toMillis(delay));
-                return;
-            } catch (Exception e) {
-                if (connection != null) {
-                    connection.failConnectionFor(failoverDurationSecs);
-                    logger.info("Marking connection as failed and trying the next available: {}", connection);
+        withConnection(conn -> {
+                try {
+                    conn.publishDeferred(topic, data, unit.toMillis(delay));
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
-            }
-        }
+            });
     }
 
     public synchronized void publish(String topic, List<byte[]> dataList) {
@@ -126,20 +113,13 @@ public class Publisher extends BasePubSub {
         checkNotNull(dataList);
         checkArgument(dataList.size() > 0);
 
-        PubConnection connection = null;
-        while (true) {
-            try {
-                connection = balanceStrategy.getConnectionFrom(pool)
-                    .orElseThrow(() -> new NSQException("All publisher connections exhausted, failing to publish message"));
-                connection.publish(topic, dataList);
-                return;
-            } catch (Exception e) {
-                if (connection != null) {
-                    connection.failConnectionFor(failoverDurationSecs);
-                    logger.info("Marking connection as failed and trying the next available: {}", connection);
+        withConnection(conn -> {
+                try {
+                    conn.publish(topic, dataList);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
                 }
-            }
-        }
+            });
     }
 
     @GuardedBy("this")
@@ -215,6 +195,23 @@ public class Publisher extends BasePubSub {
 
     public synchronized void setFailoverDurationSecs(int failoverDurationSecs) {
         this.failoverDurationSecs = failoverDurationSecs;
+    }
+
+    private void withConnection(Consumer<PubConnection> fn) {
+        PubConnection connection = null;
+        while (true) {
+            try {
+                connection = balanceStrategy.getConnectionFrom(pool)
+                    .orElseThrow(() -> new NSQException("All publisher connections exhausted, failing to publish message"));
+                fn.accept(connection);
+                return;
+            } catch (Exception e) {
+                if (connection != null) {
+                    connection.failConnectionFor(failoverDurationSecs);
+                    logger.info("Marking connection as failed and trying the next available: {}", connection);
+                }
+            }
+        }
     }
 
     private static final List<HostAndPort> nsqdsFromFailover(String nsqd, String failoverNsqd) {
