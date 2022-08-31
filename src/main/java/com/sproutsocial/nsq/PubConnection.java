@@ -44,14 +44,6 @@ class PubConnection extends Connection {
     @Override
     public void close() {
         super.close();
-        if (!publisher.isStopping) {
-            //be paranoid about locks, we only care that this happens sometime soon
-            client.getSchedExecutor().execute(new Runnable() {
-                public void run() {
-                    publisher.connectionClosed(PubConnection.this);
-                }
-            });
-        }
     }
 
     @Override

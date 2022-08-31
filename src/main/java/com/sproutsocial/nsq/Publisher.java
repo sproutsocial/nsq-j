@@ -50,34 +50,6 @@ public class Publisher extends BasePubSub {
         this(nsqd, null);
     }
 
-    @GuardedBy("this")
-    private void connect(HostAndPort host) throws IOException {
-        // TODO: Move this to the connection pool?
-        //
-        // if (con != null) {
-        //     con.close();
-        // }
-        // con = new PubConnection(client, host, this);
-        // try {
-        //     con.connect(config);
-        // }
-        // catch(IOException e) {
-        //     con.close();
-        //     con = null;
-        //     throw e;
-        // }
-        // logger.info("publisher connected:{}", host);
-    }
-
-    public synchronized void connectionClosed(PubConnection closedCon) {
-        // TODO: Move this to the connection pool?
-        // 
-        // if (con == closedCon) {
-        //     con = null;
-        //     logger.debug("removed closed publisher connection:{}", closedCon.getHost());
-        // }
-    }
-
     public synchronized void publish(String topic, byte[] data) {
         checkNotNull(topic);
         checkNotNull(data);
@@ -120,30 +92,6 @@ public class Publisher extends BasePubSub {
                     throw new RuntimeException(e);
                 }
             });
-    }
-
-    @GuardedBy("this")
-    private void publishFailover(String topic, byte[] data) {
-        // try {
-        //     if (failoverNsqd == null) {
-        //         logger.warn("publish failed but no failoverNsqd configured. Will wait and retry once.");
-        //         Util.sleepQuietly(10000); //could do exponential backoff or make configurable
-        //         connect(nsqd);
-        //     }
-        //     else if (!isFailover) {
-        //         con.failConnectionFor(failoverDurationSecs);
-        //         isFailover = true;
-        //         connect(failoverNsqd);
-        //         logger.info("using failover nsqd:{}", failoverNsqd);
-        //     }
-        //     con.publish(topic, data);
-        // }
-        // catch (Exception e) {
-        //     Util.closeQuietly(con);
-        //     con = null;
-        //     isFailover = false;
-        //     throw new NSQException("publish failed", e);
-        // }
     }
 
     public synchronized void publishBuffered(String topic, byte[] data) {
