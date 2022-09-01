@@ -146,6 +146,8 @@ public class Publisher extends BasePubSub {
     }
 
     private void withConnection(Consumer<PubConnection> fn) {
+        pool.startIfStopped(config);
+
         PubConnection connection = null;
         while (true) {
             try {
