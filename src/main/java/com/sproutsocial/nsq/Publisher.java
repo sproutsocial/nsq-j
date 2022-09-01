@@ -150,9 +150,9 @@ public class Publisher extends BasePubSub {
 
         PubConnection connection = null;
         while (true) {
+            connection = balanceStrategy.getConnectionFrom(pool)
+                .orElseThrow(() -> new NSQException("All publisher connections exhausted, failing to publish message"));
             try {
-                connection = balanceStrategy.getConnectionFrom(pool)
-                    .orElseThrow(() -> new NSQException("All publisher connections exhausted, failing to publish message"));
                 fn.accept(connection);
                 return;
             } catch (Exception e) {
