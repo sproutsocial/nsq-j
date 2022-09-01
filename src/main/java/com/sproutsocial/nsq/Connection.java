@@ -69,7 +69,7 @@ abstract class Connection extends BasePubSub implements Closeable {
     protected DataOutputStream out;
     protected DataInputStream in;
     private volatile boolean isReading = true;
-    // TODO: Think about concurrency control for these.
+
     protected final AtomicReference<State> connectionState;
     protected final AtomicReference<Optional<FailureState>> failureState;
 
