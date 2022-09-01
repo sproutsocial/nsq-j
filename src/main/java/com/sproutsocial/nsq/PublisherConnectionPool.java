@@ -1,5 +1,8 @@
 package com.sproutsocial.nsq;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +21,8 @@ import net.jcip.annotations.GuardedBy;
  */
 
 public class PublisherConnectionPool {
+    private static final Logger logger = LoggerFactory.getLogger(PublisherConnectionPool.class);
+
     private final Client client;
     private final Publisher publisher;
     private final List<HostAndPort> nsqdHosts;
@@ -53,6 +58,7 @@ public class PublisherConnectionPool {
 
     @GuardedBy("Publisher")
     public void start(Config config) {
+        logger.info("nsq-j publisher connection pool starting");
         for (final HostAndPort host : nsqdHosts) {
             final PubConnection connection = new PubConnection(client, host, publisher);
             try {
@@ -63,13 +69,13 @@ public class PublisherConnectionPool {
             }
             connections.add(connection);
         }
+        started = true;
     }
 
     @GuardedBy("Publisher")
     public void startIfStopped(Config config) {
         if (!started) {
             start(config);
-            started = true;
         }
     }
 
