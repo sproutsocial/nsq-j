@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import net.jcip.annotations.GuardedBy;
 
@@ -35,22 +36,10 @@ public class PublisherConnectionPool {
     }
 
     @GuardedBy("Publisher")
-    public int getHealthyConnectionCount() {
-        return (int)connections.stream()
-            .filter(conn -> conn.getConnectionState() == Connection.State.ESTABLISHED)
-            .count();
-    }
-
-    @GuardedBy("Publisher")
-    public Optional<PubConnection> getHealthyConnectionAt(final int index) {
-        return connections.stream()
-            .map(conn -> {
-                    if (conn.isReadyForRetry()) {
-                        conn.retryConnection();
-                    }
-                    return conn;
-                })
-            .filter(conn -> conn.getConnectionState() == Connection.State.ESTABLISHED)
+    public Optional<PubConnection> getHealthyConnectionAt(final long wrapAroundIndex) {
+        final List<PubConnection> healthyConnections = getHealthyConnections();
+        final int index = (int)(wrapAroundIndex % healthyConnections.size());
+        return healthyConnections.stream()
             .skip(index)
             .findFirst();
     }
@@ -82,5 +71,16 @@ public class PublisherConnectionPool {
             start(config);
             started = true;
         }
+    }
+
+    @GuardedBy("Publisher")
+    private final List<PubConnection> getHealthyConnections() {
+        return connections.stream()
+            .map(conn -> {
+                    conn.maybeAttemptRetry();
+                    return conn;
+                })
+            .filter(conn -> conn.getConnectionState() == Connection.State.ESTABLISHED)
+            .collect(Collectors.toList());
     }
 }

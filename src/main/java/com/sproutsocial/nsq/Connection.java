@@ -390,6 +390,12 @@ abstract class Connection extends BasePubSub implements Closeable {
         return connectionState.get();
     }
 
+    public void maybeAttemptRetry() {
+        if (isReadyForRetry()) {
+            retryConnection();
+        }
+    }
+
     public boolean isReadyForRetry() {
         return failureState.get().map(f -> f.isReadyForRetry(Util.clock())).orElse(false);
     }
