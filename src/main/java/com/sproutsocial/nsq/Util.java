@@ -58,7 +58,7 @@ class Util {
         }
     }
 
-    public static void sleepQuietly(int millis) {
+    public static void sleepQuietly(long millis) {
         try {
             Thread.sleep(millis);
         }

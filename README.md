@@ -77,3 +77,20 @@ and allows all threads to exit.
 
 [Javadocs](https://sproutsocial.github.io/nsq-j/)
 
+## Development
+
+You must have at least JDK 8 installed. A locally running docker install is also
+required to execute the full test suite. The test suite boots a small, local nsq clutser
+to exercise the full publish / subscribe flow, including failure modes.
+
+You can run the full test suite, and compile a working jar with:
+
+> make clean all
+
+This will do the necessary setup (pulling docker images), run the test suite, and build the final
+jar artifact.
+
+If you just want to execute the test suite, you can use:
+
+> make clean test
+
