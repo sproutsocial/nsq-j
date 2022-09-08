@@ -4,13 +4,15 @@ import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 
 import static com.sproutsocial.nsq.Util.checkArgument;
 import static com.sproutsocial.nsq.Util.checkNotNull;
@@ -25,17 +27,22 @@ public class Publisher extends BasePubSub {
     private ScheduledExecutorService batchExecutor;
 
     public Publisher(Client client, String nsqd, String failoverNsqd) {
+        this(client, (c, p) -> ListBasedBalanceStrategy.buildFailoverStrategy(c, p, Arrays.asList(nsqd, failoverNsqd)));
+    }
+
+    public Publisher(Client client, BiFunction<Client, Publisher, BalanceStrategy> balanceStrategyFactory) {
         super(client);
         client.addPublisher(this);
-        balanceStrategy = BalanceStrategy.build(nsqd, failoverNsqd, this, client);
+        this.balanceStrategy = balanceStrategyFactory.apply(client, this);
     }
+
 
     public Publisher(String nsqd, String failoverNsqd) {
         this(Client.getDefaultClient(), nsqd, failoverNsqd);
     }
 
     public Publisher(String nsqd) {
-        this(nsqd, null);
+        this(Client.getDefaultClient(), (c, p) -> new SingleNsqdBallenceStrategy(c, p, nsqd));
     }
 
 
@@ -47,11 +54,11 @@ public class Publisher extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(data);
         checkArgument(data.length > 0);
-        PubConnection connection = balanceStrategy.getConnection();
+        ConnectionDetails connectionDetails = balanceStrategy.getConnectionDetails();
         try {
-            connection.publish(topic, data);
+            connectionDetails.getCon().publish(topic, data);
         } catch (Exception e) {
-            balanceStrategy.lastPublishFailed();
+            connectionDetails.markFailure();
             logger.error("publish error with", e);
             publish(topic, data);
         }
@@ -63,10 +70,12 @@ public class Publisher extends BasePubSub {
         checkArgument(data.length > 0);
         checkArgument(delay > 0);
         checkNotNull(unit);
+        ConnectionDetails connection = balanceStrategy.getConnectionDetails();
         try {
-            balanceStrategy.getConnection().publishDeferred(topic, data, unit.toMillis(delay));
+            connection.getCon().publishDeferred(topic, data, unit.toMillis(delay));
         } catch (Exception e) {
-            //deferred publish never fails over
+            connection.markFailure();
+            //deferred publish does not retry
             throw new NSQException("deferred publish failed", e);
         }
     }
@@ -75,10 +84,12 @@ public class Publisher extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(dataList);
         checkArgument(dataList.size() > 0);
+        ConnectionDetails connectionDetails = balanceStrategy.getConnectionDetails();
         try {
-            balanceStrategy.getConnection().publish(topic, dataList);
+            connectionDetails.getCon().publish(topic, dataList);
         } catch (Exception e) {
             logger.error("publish error", e);
+            connectionDetails.markFailure();
             publish(topic, dataList);
         }
     }

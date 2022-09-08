@@ -6,18 +6,28 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import static org.slf4j.LoggerFactory.getLogger;
+import static com.sproutsocial.nsq.Util.*;
 
 class ConnectionDetails {
+    private enum State {
+        CONNECTED,
+        NOT_CONNECTED,
+        FAILED
+    }
+
     private static final Logger LOGGER = getLogger(ConnectionDetails.class);
     private final Publisher parent;
     private final BasePubSub basePubSub;
     HostAndPort hostAndPort;
-    PubConnection con = null;
-    boolean isFailover = false;
+    private PubConnection con = null;
     long failoverStart = 0;
     private volatile int failoverDurationSecs;
+    private State currentState = State.NOT_CONNECTED;
 
     public ConnectionDetails(String hostAndPort, Publisher parent, int failoverDurationSecs, BasePubSub basePubSub) {
+        checkNotNull(hostAndPort);
+        checkNotNull(parent);
+        checkNotNull(basePubSub);
         this.hostAndPort = HostAndPort.fromString(hostAndPort).withDefaultPort(4150);
         this.parent = parent;
         this.failoverDurationSecs = failoverDurationSecs;
@@ -28,17 +38,15 @@ class ConnectionDetails {
      * @return true if this host is ready to receive data
      */
     protected synchronized boolean makeReady() {
-        if (con == null) {
+        if (currentState == State.NOT_CONNECTED) {
             if (parent.isStopping) {
                 throw new NSQException("publisher stopped");
             }
             return connectAttempt();
-        } else if (isFailover && canAttemptRecovery()) {
-            isFailover = false;
-            connectAttempt();
-            return true;
+        } else if (currentState == State.FAILED && canAttemptRecovery()) {
+            return connectAttempt();
         }
-        return !(isFailover || con == null);
+        return currentState == State.CONNECTED;
     }
 
     private boolean canAttemptRecovery() {
@@ -46,12 +54,13 @@ class ConnectionDetails {
     }
 
     private boolean connectAttempt() {
-        if (con != null) {
-            con.close();
+        if (getCon() != null) {
+            getCon().close();
         }
-        con = new PubConnection(basePubSub.getClient(), this.hostAndPort, parent);
+        setCon(new PubConnection(basePubSub.getClient(), this.hostAndPort, parent));
         try {
-            con.connect(basePubSub.getConfig());
+            getCon().connect(basePubSub.getConfig());
+            currentState = State.CONNECTED;
         } catch (IOException e) {
             markFailure();
             return false;
@@ -73,10 +82,10 @@ class ConnectionDetails {
         return hostAndPort.hashCode();
     }
 
-    protected synchronized void markFailure() {
-        Util.closeQuietly(con);
-        con = null;
-        isFailover = true;
+    public synchronized void markFailure() {
+        Util.closeQuietly(getCon());
+        setCon(null);
+        currentState = State.FAILED;
         failoverStart = Util.clock();
         LOGGER.warn("Failed to connect to {}, will retry later", hostAndPort);
     }
@@ -85,14 +94,31 @@ class ConnectionDetails {
         this.failoverDurationSecs = failoverDurationSecs;
     }
 
+
+    public PubConnection getCon() {
+        return con;
+    }
+
+    private void setCon(PubConnection con) {
+        this.con = con;
+    }
+
+    public void clearConnection() {
+        this.con = null;
+        currentState = State.NOT_CONNECTED;
+    }
+
     @Override
     public String toString() {
-        return "ConnectionDetails{" +
-                "hostAndPort=" + hostAndPort +
-                ", con=" + con +
-                ", isFailover=" + isFailover +
-                ", failoverStart=" + failoverStart +
-                ", failoverDurationSecs=" + failoverDurationSecs +
-                '}';
+        final StringBuilder sb = new StringBuilder("ConnectionDetails{");
+        sb.append("parent=").append(parent);
+        sb.append(", basePubSub=").append(basePubSub);
+        sb.append(", hostAndPort=").append(hostAndPort);
+        sb.append(", con=").append(con);
+        sb.append(", failoverStart=").append(failoverStart);
+        sb.append(", failoverDurationSecs=").append(failoverDurationSecs);
+        sb.append(", currentState=").append(currentState);
+        sb.append('}');
+        return sb.toString();
     }
 }
