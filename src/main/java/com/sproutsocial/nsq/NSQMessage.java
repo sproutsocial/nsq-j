@@ -1,5 +1,7 @@
 package com.sproutsocial.nsq;
 
+import java.io.IOException;
+
 class NSQMessage implements Message {
 
     private final long timestamp;
@@ -63,4 +65,16 @@ class NSQMessage implements Message {
         connection.touch(id);
     }
 
+    @Override
+    public void forceFlush() {
+        try {
+            connection.flush();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    SubConnection getConnection() {
+        return connection;
+    }
 }

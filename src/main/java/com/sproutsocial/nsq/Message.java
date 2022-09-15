@@ -20,4 +20,6 @@ public interface Message {
 
     void touch();
 
+    void forceFlush();
+
 }
