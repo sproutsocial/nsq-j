@@ -124,15 +124,19 @@ public class Publisher extends BasePubSub {
 
     @Override
     public synchronized void stop() {
-        for (Batcher batcher : batchers.values()) {
-            batcher.sendBatch();
-        }
+        flushBatchers();
         super.stop();
         if (batchExecutor != null) {
             Util.shutdownAndAwaitTermination(batchExecutor, 40, TimeUnit.MILLISECONDS);
         }
         if (client.isLonePublisher(this)) { // convenience, prevents needing to call client.stop() to stop all threads
             Util.shutdownAndAwaitTermination(client.getSchedExecutor(), 40, TimeUnit.MILLISECONDS);
+        }
+    }
+
+    protected void flushBatchers() {
+        for (Batcher batcher : batchers.values()) {
+            batcher.sendBatch();
         }
     }
 
