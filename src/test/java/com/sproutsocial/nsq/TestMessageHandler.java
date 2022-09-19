@@ -4,7 +4,6 @@ import org.junit.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -13,7 +12,7 @@ public class TestMessageHandler implements MessageHandler {
     public final int timeoutMillis;
     BlockingQueue<NSQMessage> receivedMessages = new LinkedBlockingQueue<>();
 
-    public TestMessageHandler() {
+    public  TestMessageHandler() {
         this(DEFAULT_TIMEOUT_MILLIS);
     }
 

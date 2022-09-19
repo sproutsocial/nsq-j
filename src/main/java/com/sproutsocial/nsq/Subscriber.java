@@ -162,6 +162,7 @@ public class Subscriber extends BasePubSub {
                 Util.closeQuietly(in);
             }
         }
+        logger.debug("Identified these NQSD for topic {}: {}",topic,nsqds);
         return nsqds;
     }
 

@@ -210,6 +210,18 @@
     <developers>
         <!-- not a list of contributors, required to publish to maven central -->
         <developer>
+            <name>Blake Smith</name>
+            <email>blake@sproutsocial.com</email>
+            <organization>Sprout Social</organization>
+            <organizationUrl>https://sproutsocial.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Erik Helleren</name>
+            <email>erik.helleren@sproutsocial.com</email>
+            <organization>Sprout Social</organization>
+            <organizationUrl>https://sproutsocial.com</organizationUrl>
+        </developer>
+        <developer>
             <name>Rob Seed</name>
             <email>rseed@sproutsocial.com</email>
             <organization>Sprout Social</organization>

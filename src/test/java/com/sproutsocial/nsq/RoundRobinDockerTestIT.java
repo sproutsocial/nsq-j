@@ -19,7 +19,8 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
         super.setup();
         Util.sleepQuietly(500);
         handler = new TestMessageHandler();
-        subscriber = new Subscriber(client, 1, 5, cluster.getLookupNode().getHttpHostAndPort().toString());
+        subscriber = new Subscriber(client, 1, 50, cluster.getLookupNode().getHttpHostAndPort().toString());
+        subscriber.setDefaultMaxInFlight(1);
         subscriber.subscribe(topic, "tail" + System.currentTimeMillis(), handler);
         publisher = roundRobinPublisher();
     }
@@ -37,10 +38,6 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
     @Test
     public void test_happyPath() {
         publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(), 0);
-    }
-
-    private void validateMessagesSentRoundRobin(List<NsqDockerCluster.NsqdNode> nsqdNodes, int count, List<String> messages, List<NSQMessage> receivedMessages) {
-        validateMessagesSentRoundRobin(nsqdNodes, count, messages, receivedMessages, 0);
     }
 
     private void validateMessagesSentRoundRobin(List<NsqDockerCluster.NsqdNode> nsqdNodes, int count, List<String> messages, List<NSQMessage> receivedMessages, int nodeOffset) {
@@ -94,7 +91,7 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
         for (NsqDockerCluster.NsqdNode nsqdNode : cluster.getNsqdNodes()) {
             cluster.disconnectNetworkFor(nsqdNode);
         }
-        int count = 1;
+        int count = 50;
         List<String> messages = messages(count, 40);
         Assert.assertThrows(NSQException.class,()-> send(topic, messages, 0.5f, 10, publisher));
 
@@ -102,13 +99,36 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
             cluster.reconnectNetworkFor(nsqdNode);
         }
 
-        Util.sleepQuietly(5000);
+        Util.sleepQuietly(6000);
 
         Assert.assertTrue(handler.drainMessages(1).isEmpty());
 
-        send(topic, messages, 0.5f, 10, publisher);
-        List<NSQMessage> nsqMessages = handler.drainMessagesOrTimeOut(1);
-        assertEquals(messages.get(0),new String(nsqMessages.get(0).getData()));
+        send(topic, messages, 0.5f, 100, publisher);
+        Util.sleepQuietly(1000);
+        List<NSQMessage> nsqMessages = handler.drainMessages(count);
+        validateReceivedAllMessages(messages,nsqMessages,false);
+    }
+
+
+
+    @Test()
+    public void test_twoNodesDown_LaterRecovers(){
+
+        publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(), 0);
+
+        cluster.disconnectNetworkFor(cluster.getNsqdNodes().get(0));
+        cluster.disconnectNetworkFor(cluster.getNsqdNodes().get(1));
+
+        publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes().subList(2,3), 0);
+
+        cluster.reconnectNetworkFor(cluster.getNsqdNodes().get(0));
+        cluster.reconnectNetworkFor(cluster.getNsqdNodes().get(1));
+
+        Util.sleepQuietly(6000);
+
+        Assert.assertTrue(handler.drainMessages(1).isEmpty());
+
+        publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(), 0);
     }
 
 
