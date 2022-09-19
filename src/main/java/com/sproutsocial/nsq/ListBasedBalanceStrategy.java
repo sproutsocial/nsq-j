@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static com.sproutsocial.nsq.Util.checkNotNull;
@@ -17,6 +18,10 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
     private Function<List<ConnectionDetails>, ConnectionDetails> connectionDetailsSelector;
     private int failoverDurationSecs = 300;
 
+    public static BiFunction<Client, Publisher, BalanceStrategy> getRoundRobinStrategyBuilder(List<String> nsqd) {
+        return (c, p) -> buildRoundRobinStrategy(c, p, nsqd);
+    }
+
     public static ListBasedBalanceStrategy buildRoundRobinStrategy(Client client, Publisher parent, List<String> nsqd) {
         return new ListBasedBalanceStrategy(client, parent, nsqd, new Function<List<ConnectionDetails>, ConnectionDetails>() {
             private volatile int nextDaemonIndex = 0;
@@ -25,12 +30,13 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
             public ConnectionDetails apply(List<ConnectionDetails> daemonList) {
                 for (int attempts = 0; attempts < daemonList.size(); attempts++) {
                     ConnectionDetails candidate = daemonList.get(nextDaemonIndex);
-                    if (candidate.makeReady()) {
-                        return candidate;
-                    }
+                    boolean candidateReady = candidate.makeReady();
                     nextDaemonIndex++;
                     if (nextDaemonIndex >= daemonList.size()) {
                         nextDaemonIndex = 0;
+                    }
+                    if (candidateReady) {
+                        return candidate;
                     }
                 }
                 throw new NSQException("publish failed: Unable to establish a connection with any NSQ host: " + daemonList);

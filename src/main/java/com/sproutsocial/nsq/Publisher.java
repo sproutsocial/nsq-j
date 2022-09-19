@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -27,7 +28,17 @@ public class Publisher extends BasePubSub {
     private ScheduledExecutorService batchExecutor;
 
     public Publisher(Client client, String nsqd, String failoverNsqd) {
-        this(client, (c, p) -> ListBasedBalanceStrategy.buildFailoverStrategy(c, p, Arrays.asList(nsqd, failoverNsqd)));
+        this(client, getBalanceStrategyBiFunction(nsqd, failoverNsqd));
+    }
+
+    private static BiFunction<Client, Publisher, BalanceStrategy> getBalanceStrategyBiFunction(String nsqd, String failoverNsqd) {
+        Objects.requireNonNull(nsqd);
+
+        if (failoverNsqd == null) {
+            return (c, p) -> new SingleNsqdBallenceStrategy(c, p, nsqd);
+        } else {
+            return (c, p) -> ListBasedBalanceStrategy.buildFailoverStrategy(c, p, Arrays.asList(nsqd, failoverNsqd));
+        }
     }
 
     public Publisher(Client client, BiFunction<Client, Publisher, BalanceStrategy> balanceStrategyFactory) {
@@ -42,7 +53,7 @@ public class Publisher extends BasePubSub {
     }
 
     public Publisher(String nsqd) {
-        this(Client.getDefaultClient(), (c, p) -> new SingleNsqdBallenceStrategy(c, p, nsqd));
+        this(Client.getDefaultClient(), nsqd, null);
     }
 
 

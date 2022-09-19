@@ -112,7 +112,6 @@ class ConnectionDetails {
     public String toString() {
         final StringBuilder sb = new StringBuilder("ConnectionDetails{");
         sb.append("parent=").append(parent);
-        sb.append(", basePubSub=").append(basePubSub);
         sb.append(", hostAndPort=").append(hostAndPort);
         sb.append(", con=").append(con);
         sb.append(", failoverStart=").append(failoverStart);

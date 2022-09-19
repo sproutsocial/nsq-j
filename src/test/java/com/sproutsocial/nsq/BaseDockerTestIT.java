@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -103,12 +104,23 @@ public class BaseDockerTestIT {
         }
     }
 
+    protected Map<String, List<NSQMessage>> mapByNsqd(List<NSQMessage> messages) {
+        return messages.stream().collect(Collectors.groupingBy(e -> e.getConnection().getHost().toString()));
+    }
+
     protected Publisher primaryOnlyPublisher() {
         return new Publisher(client, cluster.getNsqdNodes().get(0).getTcpHostAndPort().toString(), null);
     }
 
     protected Publisher backupPublisher() {
         Publisher publisher = new Publisher(client, cluster.getNsqdNodes().get(0).getTcpHostAndPort().toString(), cluster.getNsqdNodes().get(1).getTcpHostAndPort().toString());
+        publisher.setFailoverDurationSecs(5);
+        return publisher;
+    }
+
+    protected Publisher roundRobinPublisher() {
+        List<String> nsqdHosts = cluster.getNsqdNodes().stream().map(e -> e.getTcpHostAndPort().toString()).collect(Collectors.toList());
+        Publisher publisher = new Publisher(client, ListBasedBalanceStrategy.getRoundRobinStrategyBuilder(nsqdHosts));
         publisher.setFailoverDurationSecs(5);
         return publisher;
     }
