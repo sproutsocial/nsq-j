@@ -36,28 +36,26 @@ You can batch messages manually and publish them all at once with
 `publish(String topic, List<byte[]> messages)`
 
 ### Single NSQ-d host publishing
-When we have a single NSQ-d host specified (failoverNsqd is null or not specified, and there are no commas in the nsdq string)
+When we have a single NSQ-d host specified (failoverNsqd is null or not specified when constructing a publisher)
 we will reattempt a failed publish after 10 seconds by default.  This happens in line with synchronous publishes or when 
 publishing buffered and the batch size is reached.  
 
-If this second attempt fails, the publish call will throw an exception.  
+If this second attempt fails, the call to publish will throw an NSQException. 
+
 ### Failover publishing
-nsq-j supports failover publishing.  If you specify a non-null failoverNsqd parameter, and there are no commas, this mode is activated.  
+nsq-j supports fail over publishing.  If you specify a non-null failoverNsqd parameter or manually construct a fail over balance strategy with `ListBasedBalanceStrategy#getFailoverStrategyBuilder`
 
-In failover mode, nsq-j prefers publishing to a primary.  If that fails, nsq-j will attempt to establish a connection to
-the failoverNsqd host and publish there.  It will attempt to fail back to the primary after the failure timeout, 
-defaulting to 30 seconds.  
+In fail over mode, nsq-j prefers publishing the first element of the provided list of NSQD.  It will fail over to the next nsqd if a publish fails.  After the failover duration, the next publish will atempt to fail back to the first connection.  Failover duration defaults to 5 min.  
 
-If publishing fails to write to the failoverNsqd, the write will throw an exception. 
+If all nsqd are in a failed state (have all failed within the failover duration), the write will throw an NSQException. 
 
 
 ### Round-robin publishing
-If you specify a comma separated list as the nsqd parameter, round-robin publishing is used.  If a failoverNsqd is provided,
-it will also be treated as a comma seperated list and included in the rotation.  
+To use round robin, construct a balen strategy with  `ListBasedBalanceStrategy#getRoundRobinStrategyBuilder` providing a list of nsqd to use.  
 
-All the hosts that are included in both nsqd and failoverNsqd will be added to a rotation.  Each publish action is sent
-to the next host in the rotation.  If a publishing fails, the host is marked "dead" for 30 seconds (default) before
-it will be added back to the rotation.  If all hosts are marked dead, an exception will be thrown out of publish.  
+All the hosts that are included in i the list will be added to a rotation.  Each publish action is sent
+to the next host in the rotation.  If a publishing fails, the host is marked "dead" for the failover duration (5 min default) before
+it will be added back to the rotation.  If all hosts are marked dead, an NSQException will be thrown out of publish.  
 
 ## Subscribe
 ```java
