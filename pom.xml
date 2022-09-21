@@ -222,8 +222,20 @@
             <organizationUrl>https://sproutsocial.com</organizationUrl>
         </developer>
         <developer>
-            <name>Rob Seed</name>
-            <email>rseed@sproutsocial.com</email>
+            <name>Dan Johnson</name>
+            <email>dan.johnson@sproutsocial.com</email>
+            <organization>Sprout Social</organization>
+            <organizationUrl>https://sproutsocial.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Dave Huber</name>
+            <email>dave.huber@sproutsocial.com</email>
+            <organization>Sprout Social</organization>
+            <organizationUrl>https://sproutsocial.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Jack Sadanowicz</name>
+            <email>jack@sproutsocial.com</email>
             <organization>Sprout Social</organization>
             <organizationUrl>https://sproutsocial.com</organizationUrl>
         </developer>
