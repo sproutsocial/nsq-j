@@ -43,17 +43,17 @@ publishing buffered and the batch size is reached.
 If this second attempt fails, the call to publish will throw an NSQException. 
 
 ### Failover publishing
-nsq-j supports fail over publishing.  If you specify a non-null failoverNsqd parameter or manually construct a fail over balance strategy with `ListBasedBalanceStrategy#getFailoverStrategyBuilder`
+nsq-j supports failover publishing.  If you specify a non-null failoverNsqd parameter or manually construct a failover balance strategy with `ListBasedBalanceStrategy#getFailoverStrategyBuilder`
 
 In fail over mode, nsq-j prefers publishing the first element of the provided list of NSQD.  It will fail over to the next nsqd if a publish fails.  After the failover duration, the next publish will atempt to fail back to the first connection.  Failover duration defaults to 5 min.  
 
-If all nsqd are in a failed state (have all failed within the failover duration), the write will throw an NSQException. 
+If all nsqd are in a failed state (have all failed within the failover duration), the publish will throw an NSQException. 
 
 
 ### Round-robin publishing
-To use round robin, construct a balen strategy with  `ListBasedBalanceStrategy#getRoundRobinStrategyBuilder` providing a list of nsqd to use.  
+To use round robin, construct a balance strategy with  `ListBasedBalanceStrategy#getRoundRobinStrategyBuilder` providing a list of nsqd to use.  
 
-All the hosts that are included in i the list will be added to a rotation.  Each publish action is sent
+All the hosts that are included in the list will be added to a rotation.  Each publish action is sent
 to the next host in the rotation.  If a publishing fails, the host is marked "dead" for the failover duration (5 min default) before
 it will be added back to the rotation.  If all hosts are marked dead, an NSQException will be thrown out of publish.  
 

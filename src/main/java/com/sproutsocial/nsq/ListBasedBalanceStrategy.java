@@ -14,8 +14,8 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrategy {
     private static final Logger logger = getLogger(ListBasedBalanceStrategy.class);
     protected final List<ConnectionDetails> daemonList;
-    private Publisher parent;
-    private Function<List<ConnectionDetails>, ConnectionDetails> connectionDetailsSelector;
+    private final Publisher parent;
+    private final Function<List<ConnectionDetails>, ConnectionDetails> connectionDetailsSelector;
     private int failoverDurationSecs = 300;
 
     /**
@@ -47,7 +47,7 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
 
     private static ListBasedBalanceStrategy buildRoundRobinStrategy(Client client, Publisher parent, List<String> nsqd) {
         return new ListBasedBalanceStrategy(client, parent, nsqd, new Function<List<ConnectionDetails>, ConnectionDetails>() {
-            private volatile int nextDaemonIndex = 0;
+            private int nextDaemonIndex = 0;
 
             @Override
             public ConnectionDetails apply(List<ConnectionDetails> daemonList) {

@@ -7,17 +7,21 @@ import java.util.concurrent.TimeUnit;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
- * A single NSQD ballence strategy will attempt to publish to the single known NSQD.  If that fails on a first attempt
+ * A single NSQD balance strategy will attempt to publish to the single known NSQD.  If that fails on a first attempt
  * it will *block* for the failover duration (default 10 seconds) and attempt to reconnect.
  */
-public class SingleNsqdBallenceStrategy extends BasePubSub implements BalanceStrategy {
-    private static final Logger logger = getLogger(SingleNsqdBallenceStrategy.class);
+public class SingleNsqdBalanceStrategy extends BasePubSub implements BalanceStrategy {
+    private static final Logger logger = getLogger(SingleNsqdBalanceStrategy.class);
     protected final ConnectionDetails connectionDetails;
     private int failoverDurationSecs = 10;
 
-    public SingleNsqdBallenceStrategy(Client client, Publisher parent, String nsqd) {
+    public SingleNsqdBalanceStrategy(Client client, Publisher parent, String nsqd) {
         super(client);
-        logger.warn("You are configured to use a singe NSQD balance strategy.  Please Read the manual and make sure you really want that.");
+        logger.warn("You are configured to use a singe NSQD balance strategy.  This has both availability and correctness issues.  " +
+                "Nsq-j is sleeping for failover duration on a failed publish inside a critical lock section impacting all threads calling to publish.  " +
+                "This may appear to be lock starvation. " +
+                "The client is also not resilient to failures in this mode, a single outage can result in dataloss and crashing (slowly).  "+
+                "Please use failover or round robin balance strategy to avoid these issues");
         connectionDetails = new ConnectionDetails(nsqd,
                 parent,
                 this.failoverDurationSecs,

@@ -20,7 +20,7 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
     public void setup() {
         super.setup();
         Util.sleepQuietly(500);
-        //This needs to be crazy long because it can take up to 1 min for nsq-lookup to remove the bad nodes and add them back again so we can reconnect
+        //This needs to be crazy long because it can take up to 1 min for the connections in the subscriber to timeout and reconnect.
         handler = new TestMessageHandler(60_000);
         subscriber = new Subscriber(client, 1, 50, cluster.getLookupNode().getHttpHostAndPort().toString());
         subscriber.subscribe(topic, "tail" + System.currentTimeMillis(), handler);

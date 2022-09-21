@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +34,7 @@ public class Publisher extends BasePubSub {
         Objects.requireNonNull(nsqd);
 
         if (failoverNsqd == null) {
-            return (c, p) -> new SingleNsqdBallenceStrategy(c, p, nsqd);
+            return (c, p) -> new SingleNsqdBalanceStrategy(c, p, nsqd);
         } else {
             return ListBasedBalanceStrategy.getFailoverStrategyBuilder(Arrays.asList(nsqd, failoverNsqd));
         }

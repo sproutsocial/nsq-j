@@ -87,7 +87,7 @@ class ConnectionDetails {
         setCon(null);
         currentState = State.FAILED;
         failoverStart = Util.clock();
-        LOGGER.warn("Failed to connect to {}, will retry later", hostAndPort);
+        LOGGER.warn("Failed to connect to {}, will retry after {} seconds", hostAndPort, this.failoverDurationSecs);
     }
 
     public void setFailoverDurationSecs(int failoverDurationSecs) {
@@ -110,14 +110,12 @@ class ConnectionDetails {
 
     @Override
     public String toString() {
-        final StringBuilder sb = new StringBuilder("ConnectionDetails{");
-        sb.append("parent=").append(parent);
-        sb.append(", hostAndPort=").append(hostAndPort);
-        sb.append(", con=").append(con);
-        sb.append(", failoverStart=").append(failoverStart);
-        sb.append(", failoverDurationSecs=").append(failoverDurationSecs);
-        sb.append(", currentState=").append(currentState);
-        sb.append('}');
-        return sb.toString();
+        return "ConnectionDetails{" + "parent=" + parent +
+                ", hostAndPort=" + hostAndPort +
+                ", con=" + con +
+                ", failoverStart=" + failoverStart +
+                ", failoverDurationSecs=" + failoverDurationSecs +
+                ", currentState=" + currentState +
+                '}';
     }
 }
