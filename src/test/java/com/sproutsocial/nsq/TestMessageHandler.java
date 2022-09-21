@@ -12,7 +12,7 @@ public class TestMessageHandler implements MessageHandler {
     public final int timeoutMillis;
     BlockingQueue<NSQMessage> receivedMessages = new LinkedBlockingQueue<>();
 
-    public  TestMessageHandler() {
+    public TestMessageHandler() {
         this(DEFAULT_TIMEOUT_MILLIS);
     }
 
@@ -31,7 +31,7 @@ public class TestMessageHandler implements MessageHandler {
         return drainMessagesOrTimeOut(size, timeoutMillis);
     }
 
-    public List<NSQMessage> drainMessagesOrTimeOut(int size, int timeoutMillis) {
+    public List<NSQMessage> drainMessagesOrTimeOut(int size, long timeoutMillis) {
         long timeoutTime = System.currentTimeMillis() + timeoutMillis;
         while (receivedMessages.size() < size && System.currentTimeMillis() < timeoutTime) {
             Util.sleepQuietly(50);

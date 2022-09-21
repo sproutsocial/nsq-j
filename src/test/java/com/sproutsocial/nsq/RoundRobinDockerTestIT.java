@@ -2,14 +2,16 @@ package com.sproutsocial.nsq;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
+import static org.slf4j.LoggerFactory.getLogger;
 
 public class RoundRobinDockerTestIT extends BaseDockerTestIT {
-
+    private static final Logger LOGGER = getLogger(RoundRobinDockerTestIT.class);
     private Subscriber subscriber;
     private Publisher publisher;
     private TestMessageHandler handler;
@@ -18,9 +20,9 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
     public void setup() {
         super.setup();
         Util.sleepQuietly(500);
-        handler = new TestMessageHandler();
+        //This needs to be crazy long because it can take up to 1 min for nsq-lookup to remove the bad nodes and add them back again so we can reconnect
+        handler = new TestMessageHandler(60_000);
         subscriber = new Subscriber(client, 1, 50, cluster.getLookupNode().getHttpHostAndPort().toString());
-        subscriber.setDefaultMaxInFlight(1);
         subscriber.subscribe(topic, "tail" + System.currentTimeMillis(), handler);
         publisher = roundRobinPublisher();
     }
@@ -43,7 +45,7 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
     private void validateMessagesSentRoundRobin(List<NsqDockerCluster.NsqdNode> nsqdNodes, int count, List<String> messages, List<NSQMessage> receivedMessages, int nodeOffset) {
         Map<String, List<NSQMessage>> messagesByNsqd = mapByNsqd(receivedMessages);
         for (int i = 0; i < count; i++) {
-            String nsqdHst = nsqdNodes.get((i+ nodeOffset) % nsqdNodes.size()).getTcpHostAndPort().toString();
+            String nsqdHst = nsqdNodes.get((i + nodeOffset) % nsqdNodes.size()).getTcpHostAndPort().toString();
             int expectedIndex = i / nsqdNodes.size();
             String nsqdMessage = new String(messagesByNsqd.get(nsqdHst).get(expectedIndex).getData());
             assertEquals("For message " + i + " expect it to be from nsqd " + nsqdHst, messages.get(i), nsqdMessage);
@@ -58,7 +60,7 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
     }
 
     @Test
-    public void test_SingleNodeFailsAndRecovers(){
+    public void test_SingleNodeFailsAndRecovers() {
         List<NsqDockerCluster.NsqdNode> nsqdNodes = cluster.getNsqdNodes();
         cluster.disconnectNetworkFor(nsqdNodes.get(2));
         publishAndValidateRoundRobinForNodes(nsqdNodes.subList(0, 2), 0);
@@ -77,23 +79,27 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
     }
 
     @Test(timeout = 500)
-    public void test_allNodesDown_throwsException(){
+    public void test_allNodesDown_throwsException() {
         for (NsqDockerCluster.NsqdNode nsqdNode : cluster.getNsqdNodes()) {
             cluster.disconnectNetworkFor(nsqdNode);
         }
         int count = 1;
         List<String> messages = messages(count, 40);
-        Assert.assertThrows(NSQException.class,()-> send(topic, messages, 0.5f, 10, publisher));
+        Assert.assertThrows(NSQException.class, () -> send(topic, messages, 0.5f, 10, publisher));
     }
 
+
     @Test()
-    public void test_allNodesDown_LaterRecovers(){
+    public void test_allNodesDown_LaterRecovers() {
+        publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(), 0);
+
         for (NsqDockerCluster.NsqdNode nsqdNode : cluster.getNsqdNodes()) {
             cluster.disconnectNetworkFor(nsqdNode);
         }
         int count = 50;
         List<String> messages = messages(count, 40);
-        Assert.assertThrows(NSQException.class,()-> send(topic, messages, 0.5f, 10, publisher));
+        Assert.assertThrows(NSQException.class, () -> send(topic, messages, 0.5f, 10, publisher));
+        LOGGER.info(subscriber.toString());
 
         for (NsqDockerCluster.NsqdNode nsqdNode : cluster.getNsqdNodes()) {
             cluster.reconnectNetworkFor(nsqdNode);
@@ -101,25 +107,27 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
 
         Util.sleepQuietly(6000);
 
+        // Explicitly recreate the subscrber to get fresh connections.  Otherwise we would need to wait for the socket timeout of 60 seconds
+        subscriber.stop();
+        subscriber = new Subscriber(client, 1, 50, cluster.getLookupNode().getHttpHostAndPort().toString());
+        subscriber.subscribe(topic, "tail" + System.currentTimeMillis(), handler);
+
         Assert.assertTrue(handler.drainMessages(1).isEmpty());
 
-        send(topic, messages, 0.5f, 100, publisher);
-        Util.sleepQuietly(1000);
-        List<NSQMessage> nsqMessages = handler.drainMessages(count);
-        validateReceivedAllMessages(messages,nsqMessages,false);
+        send(topic, messages, 0.1f, 50, publisher);
+        List<NSQMessage> nsqMessages = handler.drainMessagesOrTimeOut(count);
+        validateReceivedAllMessages(messages, nsqMessages, false);
     }
 
 
-
     @Test()
-    public void test_twoNodesDown_LaterRecovers(){
-
+    public void test_twoNodesDown_LaterRecovers() {
         publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(), 0);
 
         cluster.disconnectNetworkFor(cluster.getNsqdNodes().get(0));
         cluster.disconnectNetworkFor(cluster.getNsqdNodes().get(1));
 
-        publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes().subList(2,3), 0);
+        publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes().subList(2, 3), 0);
 
         cluster.reconnectNetworkFor(cluster.getNsqdNodes().get(0));
         cluster.reconnectNetworkFor(cluster.getNsqdNodes().get(1));

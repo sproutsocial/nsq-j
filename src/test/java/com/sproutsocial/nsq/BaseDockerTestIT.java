@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -62,7 +63,7 @@ public class BaseDockerTestIT {
             }
             publisher.publish(topic, msg.getBytes());
             if (++count % 10 == 0) {
-                System.out.println("sent " + count + " msgs");
+                LOGGER.info("sent {} msgs",count);
             }
         }
     }
@@ -105,7 +106,11 @@ public class BaseDockerTestIT {
     }
 
     protected Map<String, List<NSQMessage>> mapByNsqd(List<NSQMessage> messages) {
-        return messages.stream().collect(Collectors.groupingBy(e -> e.getConnection().getHost().toString()));
+        Map<String, List<NSQMessage>> byNsqd = messages.stream().collect(Collectors.groupingBy(e -> e.getConnection().getHost().toString()));
+        for (List<NSQMessage> m : byNsqd.values()) {
+            m.sort(Comparator.comparing(a -> new String(a.getData())));
+        }
+        return byNsqd;
     }
 
     protected Publisher primaryOnlyPublisher() {
