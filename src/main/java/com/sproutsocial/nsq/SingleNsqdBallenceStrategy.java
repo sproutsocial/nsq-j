@@ -2,19 +2,24 @@ package com.sproutsocial.nsq;
 
 import org.slf4j.Logger;
 
+import java.util.concurrent.TimeUnit;
+
 import static org.slf4j.LoggerFactory.getLogger;
 
+/**
+ * A single NSQD ballence strategy will attempt to publish to the single known NSQD.  If that fails on a first attempt
+ * it will *block* for the failover duration (default 10 seconds) and attempt to reconnect.
+ */
 public class SingleNsqdBallenceStrategy extends BasePubSub implements BalanceStrategy {
     private static final Logger logger = getLogger(SingleNsqdBallenceStrategy.class);
     protected final ConnectionDetails connectionDetails;
-    private final Publisher parent;
     private int failoverDurationSecs = 10;
 
     public SingleNsqdBallenceStrategy(Client client, Publisher parent, String nsqd) {
         super(client);
-        this.parent = parent;
+        logger.warn("You are configured to use a singe NSQD balance strategy.  Please Read the manual and make sure you really want that.");
         connectionDetails = new ConnectionDetails(nsqd,
-                this.parent,
+                parent,
                 this.failoverDurationSecs,
                 this);
     }
@@ -23,7 +28,7 @@ public class SingleNsqdBallenceStrategy extends BasePubSub implements BalanceStr
     public ConnectionDetails getConnectionDetails() {
         if (!connectionDetails.makeReady()) {
             logger.warn("We aren't able to connect just now, so we are going to sleep for {} seconds", failoverDurationSecs);
-            Util.sleepQuietly(failoverDurationSecs * 1000);
+            Util.sleepQuietly(TimeUnit.SECONDS.toMillis(failoverDurationSecs));
             if (connectionDetails.makeReady())
                 return connectionDetails;
             else {

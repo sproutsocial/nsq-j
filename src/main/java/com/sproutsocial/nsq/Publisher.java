@@ -37,7 +37,7 @@ public class Publisher extends BasePubSub {
         if (failoverNsqd == null) {
             return (c, p) -> new SingleNsqdBallenceStrategy(c, p, nsqd);
         } else {
-            return (c, p) -> ListBasedBalanceStrategy.buildFailoverStrategy(c, p, Arrays.asList(nsqd, failoverNsqd));
+            return ListBasedBalanceStrategy.getFailoverStrategyBuilder(Arrays.asList(nsqd, failoverNsqd));
         }
     }
 
