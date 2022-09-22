@@ -54,12 +54,12 @@ class ConnectionDetails {
     }
 
     private boolean connectAttempt() {
-        if (getCon() != null) {
-            getCon().close();
+        if (con != null) {
+            con.close();
         }
-        setCon(new PubConnection(basePubSub.getClient(), this.hostAndPort, parent));
+        con = new PubConnection(basePubSub.getClient(), this.hostAndPort, parent);
         try {
-            getCon().connect(basePubSub.getConfig());
+            con.connect(basePubSub.getConfig());
             currentState = State.CONNECTED;
         } catch (IOException e) {
             markFailure();
@@ -83,11 +83,11 @@ class ConnectionDetails {
     }
 
     public synchronized void markFailure() {
-        Util.closeQuietly(getCon());
-        setCon(null);
+        Util.closeQuietly(con);
+        con = null;
         currentState = State.FAILED;
         failoverStart = Util.clock();
-        LOGGER.warn("Failed to connect to {}, will retry after {} seconds", hostAndPort, this.failoverDurationSecs);
+        LOGGER.warn("Marking the connection to host {} as failed , will retry after {} seconds", hostAndPort, this.failoverDurationSecs);
     }
 
     public void setFailoverDurationSecs(int failoverDurationSecs) {
@@ -97,10 +97,6 @@ class ConnectionDetails {
 
     public PubConnection getCon() {
         return con;
-    }
-
-    private void setCon(PubConnection con) {
-        this.con = con;
     }
 
     public void clearConnection() {

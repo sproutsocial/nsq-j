@@ -45,7 +45,7 @@ If this second attempt fails, the call to publish will throw an NSQException.
 ### Failover publishing
 nsq-j supports failover publishing.  If you specify a non-null failoverNsqd parameter or manually construct a failover balance strategy with `ListBasedBalanceStrategy#getFailoverStrategyBuilder`
 
-In fail over mode, nsq-j prefers publishing the first element of the provided list of NSQD.  It will fail over to the next nsqd if a publish fails.  After the failover duration, the next publish will atempt to fail back to the first connection.  Failover duration defaults to 5 min.  
+In fail over mode, nsq-j prefers publishing the first element of the provided list of NSQD.  It will fail over to the next nsqd if a publish fails.  After the failover duration, the next publish will attempt to reconnect to the first nsqd.  Failover duration defaults to 5 min.  
 
 If all nsqd are in a failed state (have all failed within the failover duration), the publish will throw an NSQException. 
 
