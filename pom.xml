@@ -210,32 +210,8 @@
     <developers>
         <!-- not a list of contributors, required to publish to maven central -->
         <developer>
-            <name>Blake Smith</name>
-            <email>blake@sproutsocial.com</email>
-            <organization>Sprout Social</organization>
-            <organizationUrl>https://sproutsocial.com</organizationUrl>
-        </developer>
-        <developer>
-            <name>Erik Helleren</name>
-            <email>erik.helleren@sproutsocial.com</email>
-            <organization>Sprout Social</organization>
-            <organizationUrl>https://sproutsocial.com</organizationUrl>
-        </developer>
-        <developer>
-            <name>Dan Johnson</name>
-            <email>dan.johnson@sproutsocial.com</email>
-            <organization>Sprout Social</organization>
-            <organizationUrl>https://sproutsocial.com</organizationUrl>
-        </developer>
-        <developer>
-            <name>Dave Huber</name>
-            <email>dave.huber@sproutsocial.com</email>
-            <organization>Sprout Social</organization>
-            <organizationUrl>https://sproutsocial.com</organizationUrl>
-        </developer>
-        <developer>
-            <name>Jack Sadanowicz</name>
-            <email>jack@sproutsocial.com</email>
+            <name>Sprout Social Maven Central</name>
+            <email>mavencentral@sproutsocial.com</email>
             <organization>Sprout Social</organization>
             <organizationUrl>https://sproutsocial.com</organizationUrl>
         </developer>
