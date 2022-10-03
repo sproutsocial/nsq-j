@@ -89,7 +89,26 @@
                     <show>public</show>
                 </configuration>
             </plugin>
-            <plugin>
+	    <plugin>
+		<groupId>org.apache.maven.plugins</groupId>
+		<artifactId>maven-gpg-plugin</artifactId>
+		<executions>
+		    <execution>
+			<id>sign-artifacts</id>
+			<phase>deploy</phase>
+			<goals>
+			    <goal>sign</goal>
+			</goals>
+			<configuration>
+			    <gpgArguments>
+				<arg>--pinentry-mode</arg>
+				<arg>loopback</arg>
+			    </gpgArguments>
+			</configuration>
+		    </execution>
+		</executions>
+	    </plugin>
+	    <plugin>
                 <groupId>org.sonatype.plugins</groupId>
                 <artifactId>nexus-staging-maven-plugin</artifactId>
                 <version>1.6.12</version>
@@ -100,22 +119,6 @@
                     <autoReleaseAfterClose>true</autoReleaseAfterClose>
                 </configuration>
             </plugin>
-            <!-- uncomment when uploading to maven central
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>1.6</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            -->
         </plugins>
     </build>
 
@@ -222,5 +225,13 @@
         <developerConnection>scm:git:ssh://github.com:sproutsocial/nsq-j.git</developerConnection>
         <url>http://github.com/sproutsocial/nsq-j/tree/master</url>
     </scm>
+
+    <distributionManagement>
+	<repository>
+            <id>ossrh</id>
+            <name>Central Repository OSSRH</name>
+            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
+	</repository>
+    </distributionManagement>
 
 </project>
