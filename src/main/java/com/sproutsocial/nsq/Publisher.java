@@ -1,103 +1,76 @@
 package com.sproutsocial.nsq;
 
-import net.jcip.annotations.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 
 import static com.sproutsocial.nsq.Util.checkArgument;
 import static com.sproutsocial.nsq.Util.checkNotNull;
 
 @ThreadSafe
 public class Publisher extends BasePubSub {
-
-    private final HostAndPort nsqd;
-    private final HostAndPort failoverNsqd;
-    private PubConnection con;
-    private boolean isFailover = false;
-    private long failoverStart;
-    private int failoverDurationSecs = 300;
-    private final Map<String, Batcher> batchers = new HashMap<String, Batcher>();
-    private ScheduledExecutorService batchExecutor;
-
     private static final int DEFAULT_MAX_BATCH_SIZE = 16 * 1024;
     private static final int DEFUALT_MAX_BATCH_DELAY = 300;
-
     private static final Logger logger = LoggerFactory.getLogger(Publisher.class);
+    private final BalanceStrategy balanceStrategy;
+    private final Map<String, Batcher> batchers = new HashMap<>();
+    private ScheduledExecutorService batchExecutor;
 
     public Publisher(Client client, String nsqd, String failoverNsqd) {
-        super(client);
-        this.nsqd = HostAndPort.fromString(nsqd).withDefaultPort(4150);
-        this.failoverNsqd = failoverNsqd != null ? HostAndPort.fromString(failoverNsqd).withDefaultPort(4150) : null;
-        client.addPublisher(this);
+        this(client, getBalanceStrategyBiFunction(nsqd, failoverNsqd));
     }
+
+    private static BiFunction<Client, Publisher, BalanceStrategy> getBalanceStrategyBiFunction(String nsqd, String failoverNsqd) {
+        Objects.requireNonNull(nsqd);
+
+        if (failoverNsqd == null) {
+            return (c, p) -> new SingleNsqdBalanceStrategy(c, p, nsqd);
+        } else {
+            return ListBasedBalanceStrategy.getFailoverStrategyBuilder(Arrays.asList(nsqd, failoverNsqd));
+        }
+    }
+
+    public Publisher(Client client, BiFunction<Client, Publisher, BalanceStrategy> balanceStrategyFactory) {
+        super(client);
+        client.addPublisher(this);
+        this.balanceStrategy = balanceStrategyFactory.apply(client, this);
+    }
+
 
     public Publisher(String nsqd, String failoverNsqd) {
         this(Client.getDefaultClient(), nsqd, failoverNsqd);
     }
 
     public Publisher(String nsqd) {
-        this(nsqd, null);
+        this(Client.getDefaultClient(), nsqd, null);
     }
 
-    @GuardedBy("this")
-    private void checkConnection() throws IOException {
-        if (con == null) {
-            if (isStopping) {
-                throw new NSQException("publisher stopped");
-            }
-            connect(nsqd);
-        }
-        else if (isFailover && Util.clock() - failoverStart > failoverDurationSecs * 1000) {
-            isFailover = false;
-            connect(nsqd);
-            logger.info("using primary nsqd");
-        }
-    }
-
-    @GuardedBy("this")
-    private void connect(HostAndPort host) throws IOException {
-        if (con != null) {
-            con.close();
-        }
-        con = new PubConnection(client, host, this);
-        try {
-            con.connect(config);
-        }
-        catch(IOException e) {
-            con.close();
-            con = null;
-            throw e;
-        }
-        logger.info("publisher connected:{}", host);
-    }
 
     public synchronized void connectionClosed(PubConnection closedCon) {
-        if (con == closedCon) {
-            con = null;
-            logger.debug("removed closed publisher connection:{}", closedCon.getHost());
-        }
+        balanceStrategy.connectionClosed(closedCon);
     }
 
     public synchronized void publish(String topic, byte[] data) {
         checkNotNull(topic);
         checkNotNull(data);
         checkArgument(data.length > 0);
+        ConnectionDetails connectionDetails = balanceStrategy.getConnectionDetails();
         try {
-            checkConnection();
-            con.publish(topic, data);
-        }
-        catch (Exception e) {
-            logger.error("publish error with:{}", isFailover ? failoverNsqd : nsqd, e);
-            publishFailover(topic, data);
+            connectionDetails.getCon().publish(topic, data);
+        } catch (Exception e) {
+            connectionDetails.markFailure();
+            logger.error("publish error with", e);
+            publish(topic, data);
         }
     }
 
@@ -107,12 +80,12 @@ public class Publisher extends BasePubSub {
         checkArgument(data.length > 0);
         checkArgument(delay > 0);
         checkNotNull(unit);
+        ConnectionDetails connection = balanceStrategy.getConnectionDetails();
         try {
-            checkConnection();
-            con.publishDeferred(topic, data, unit.toMillis(delay));
-        }
-        catch (Exception e) {
-            //deferred publish never fails over
+            connection.getCon().publishDeferred(topic, data, unit.toMillis(delay));
+        } catch (Exception e) {
+            connection.markFailure();
+            //deferred publish does not retry
             throw new NSQException("deferred publish failed", e);
         }
     }
@@ -121,39 +94,13 @@ public class Publisher extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(dataList);
         checkArgument(dataList.size() > 0);
+        ConnectionDetails connectionDetails = balanceStrategy.getConnectionDetails();
         try {
-            checkConnection();
-            con.publish(topic, dataList);
-        }
-        catch (Exception e) {
-            logger.error("publish error with:{}", isFailover ? failoverNsqd : nsqd, e);
-            for (byte[] data : dataList) {
-                publishFailover(topic, data);
-            }
-        }
-    }
-
-    @GuardedBy("this")
-    private void publishFailover(String topic, byte[] data) {
-        try {
-            if (failoverNsqd == null) {
-                logger.warn("publish failed but no failoverNsqd configured. Will wait and retry once.");
-                Util.sleepQuietly(10000); //could do exponential backoff or make configurable
-                connect(nsqd);
-            }
-            else if (!isFailover) {
-                failoverStart = Util.clock();
-                isFailover = true;
-                connect(failoverNsqd);
-                logger.info("using failover nsqd:{}", failoverNsqd);
-            }
-            con.publish(topic, data);
-        }
-        catch (Exception e) {
-            Util.closeQuietly(con);
-            con = null;
-            isFailover = false;
-            throw new NSQException("publish failed", e);
+            connectionDetails.getCon().publish(topic, dataList);
+        } catch (Exception e) {
+            logger.error("publish error", e);
+            connectionDetails.markFailure();
+            publish(topic, dataList);
         }
     }
 
@@ -189,8 +136,6 @@ public class Publisher extends BasePubSub {
     public synchronized void stop() {
         flushBatchers();
         super.stop();
-        Util.closeQuietly(con);
-        con = null;
         if (batchExecutor != null) {
             Util.shutdownAndAwaitTermination(batchExecutor, 40, TimeUnit.MILLISECONDS);
         }
@@ -206,11 +151,11 @@ public class Publisher extends BasePubSub {
     }
 
     public synchronized int getFailoverDurationSecs() {
-        return failoverDurationSecs;
+        return balanceStrategy.getFailoverDurationSecs();
     }
 
     public synchronized void setFailoverDurationSecs(int failoverDurationSecs) {
-        this.failoverDurationSecs = failoverDurationSecs;
+        balanceStrategy.setFailoverDurationSecs(failoverDurationSecs);
     }
 
 }

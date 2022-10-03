@@ -4,7 +4,6 @@ import org.junit.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -32,7 +31,7 @@ public class TestMessageHandler implements MessageHandler {
         return drainMessagesOrTimeOut(size, timeoutMillis);
     }
 
-    public List<NSQMessage> drainMessagesOrTimeOut(int size, int timeoutMillis) {
+    public List<NSQMessage> drainMessagesOrTimeOut(int size, long timeoutMillis) {
         long timeoutTime = System.currentTimeMillis() + timeoutMillis;
         while (receivedMessages.size() < size && System.currentTimeMillis() < timeoutTime) {
             Util.sleepQuietly(50);

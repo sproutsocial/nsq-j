@@ -35,6 +35,28 @@ after nsqd responds `OK`
 You can batch messages manually and publish them all at once with
 `publish(String topic, List<byte[]> messages)`
 
+### Single NSQ-d host publishing
+When we have a single NSQ-d host specified (failoverNsqd is null or not specified when constructing a publisher)
+we will reattempt a failed publish after 10 seconds by default.  This happens in line with synchronous publishes or when 
+publishing buffered and the batch size is reached.  
+
+If this second attempt fails, the call to publish will throw an NSQException. 
+
+### Failover publishing
+nsq-j supports failover publishing.  If you specify a non-null failoverNsqd parameter or manually construct a failover balance strategy with `ListBasedBalanceStrategy#getFailoverStrategyBuilder`
+
+In fail over mode, nsq-j prefers publishing the first element of the provided list of NSQD.  It will fail over to the next nsqd if a publish fails.  After the failover duration, the next publish will attempt to reconnect to the first nsqd.  Failover duration defaults to 5 min.  
+
+If all nsqd are in a failed state (have all failed within the failover duration), the publish will throw an NSQException. 
+
+
+### Round-robin publishing
+To use round robin, construct a balance strategy with  `ListBasedBalanceStrategy#getRoundRobinStrategyBuilder` providing a list of nsqd to use.  
+
+All the hosts that are included in the list will be added to a rotation.  Each publish action is sent
+to the next host in the rotation.  If a publishing fails, the host is marked "dead" for the failover duration (5 min default) before
+it will be added back to the rotation.  If all hosts are marked dead, an NSQException will be thrown out of publish.  
+
 ## Subscribe
 ```java
 public class PubExample {
