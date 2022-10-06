@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -137,6 +138,27 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
         Assert.assertTrue(handler.drainMessages(1).isEmpty());
 
         publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(), 0);
+    }
+
+    @Test
+    public void test_oneNodeDown_FirstPublishDeferredThrowsException() {
+        publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(),0);
+        cluster.disconnectNetworkFor(cluster.getNsqdNodes().get(0));
+        List<String> messages = messages(1, 20);
+        Assert.assertThrows(NSQException.class, () -> publisher.publishDeferred(topic, messages.get(0).getBytes(), 10, TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    public void test_oneNodeDown_DeferredWithRetryWillRetry() {
+        publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(),0);
+
+        cluster.disconnectNetworkFor(cluster.getNsqdNodes().get(0));
+        List<String> messages = messages(1, 20);
+        publisher.publishDeferredWithRetry(topic, messages.get(0).getBytes(), 10, TimeUnit.MILLISECONDS);
+
+        List<NSQMessage> nsqMessages = handler.drainMessagesOrTimeOut(1);
+        assertEquals(messages.get(0),new String(nsqMessages.get(0).getData()));
+
     }
 
 
