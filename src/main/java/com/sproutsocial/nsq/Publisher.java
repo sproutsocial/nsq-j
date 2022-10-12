@@ -74,6 +74,10 @@ public class Publisher extends BasePubSub {
         }
     }
 
+    /**
+     * This version of publish deferred will NOT retry if there is a connection issue.  If the first
+     * publish attempt fails, it will mark the connection as failed and throw an NSQException.
+     */
     public synchronized void publishDeferred(String topic, byte[] data, long delay, TimeUnit unit) {
         checkNotNull(topic);
         checkNotNull(data);
@@ -89,6 +93,27 @@ public class Publisher extends BasePubSub {
             throw new NSQException("deferred publish failed", e);
         }
     }
+
+    /**
+     * This variant of publish deferred will mirror Publisher#publish when it comes to retries: It will
+     * continue to retry until the balance strategy runs out of connections.
+     */
+    public synchronized void publishDeferredWithRetry(String topic, byte[] data, long delay, TimeUnit unit) {
+        checkNotNull(topic);
+        checkNotNull(data);
+        checkArgument(data.length > 0);
+        checkArgument(delay > 0);
+        checkNotNull(unit);
+        ConnectionDetails connection = balanceStrategy.getConnectionDetails();
+        try {
+            connection.getCon().publishDeferred(topic, data, unit.toMillis(delay));
+        } catch (Exception e) {
+            logger.error("Deferred publish error", e);
+            connection.markFailure();
+            publishDeferredWithRetry(topic,data,delay,unit);
+        }
+    }
+
 
     public synchronized void publish(String topic, List<byte[]> dataList) {
         checkNotNull(topic);
