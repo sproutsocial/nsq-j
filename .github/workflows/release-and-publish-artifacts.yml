@@ -1,10 +1,10 @@
 name: release and push to central
 on:
-  push:
-    tags:
-      - 'v*'
+  release:
+    types:
+      - published
 jobs:
-  publish:
+  publish_to_maven_central:
     runs-on: ubuntu-latest
     environment: release-env
     steps:
@@ -27,9 +27,3 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
-      - name: Create release
-        uses: ncipollo/release-action@v1
-        with:
-          allowUpdates: true
-          artifacts: "${{ github.workspace }}/target/*.jar"
-          token: ${{ secrets.GITHUB_TOKEN }}
