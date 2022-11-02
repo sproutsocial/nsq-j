@@ -2,6 +2,7 @@ package com.sproutsocial.nsq;
 
 import org.junit.Ignore;
 import org.junit.Test;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 
@@ -55,6 +56,28 @@ public class PublisherWithFailoverDockerTestIT extends BaseDockerTestIT {
         cluster.reconnectNetworkFor(cluster.getNsqdNodes().get(0));
         //Warning, this should not take so long.  But it does seem to work reliably.
         Util.sleepQuietly(TimeUnit.SECONDS.toMillis(15));
+
+        sendAndVerifyMessagesFromPrimary(publisher, handler);
+    }
+
+    @Test
+    public void clearsConnectionsIfAllNodesAreMarkedDead() {
+        // Force publishing to fail by disconnecting all the nodes network
+        // Perhaps to simulate a bad network flake.
+        cluster.getNsqdNodes().forEach(cluster::disconnectNetworkFor);
+
+        boolean exceptionTriggered = false;
+        try {
+            publisher.publish(topic, new byte[]{0x0});
+        } catch (NSQException e) {
+            exceptionTriggered = true;
+        }
+
+        assertTrue(exceptionTriggered);
+
+        // As soon as the network flakiness subsides, we should be in a state
+        // where publishing succeeds again immediately.
+        cluster.getNsqdNodes().forEach(cluster::reconnectNetworkFor);
 
         sendAndVerifyMessagesFromPrimary(publisher, handler);
     }
