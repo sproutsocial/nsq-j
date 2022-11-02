@@ -65,7 +65,7 @@ public class PublisherWithFailoverDockerTestIT extends BaseDockerTestIT {
     public void failedBulkPublishesPublishToFailoverSequentially() {
         final int maxBodySize = 5242880; // This is the default nsqd max body size for any nsqd TCP message
         final int count = 30;
-        final int bytesPerMessage = (maxBodySize + 10) / count;
+        final int bytesPerMessage = (maxBodySize + 10) / (count - 1);
         final List<String> messages = messages(count, bytesPerMessage);
         final List<byte[]> batch = messages
             .stream()

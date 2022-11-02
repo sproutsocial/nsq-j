@@ -128,8 +128,16 @@ public class Publisher extends BasePubSub {
             // We publish sequentially when we have an MPUB failure to
             // help cover cases where perhaps the total payload size of the
             // MPUB exceeded the nsqd -max-body-size or -max-msg-size.
+            //
+            // TODO: Perhaps make this configurable for clients that want
+            // the 'all-or-nothing' atomicity publishing guarantees of MPUB,
+            // rather than optimizing for batch-publishing throughput only.
             for (final byte[] data : dataList) {
-                publish(topic, data);
+                try {
+                    publish(topic, data);
+                } catch (Exception ex) {
+                    logger.error("failed to sequentially publish message after failed MPUB call call", ex);
+                }
             }
         }
     }
