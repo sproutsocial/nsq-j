@@ -133,11 +133,7 @@ public class Publisher extends BasePubSub {
             // the 'all-or-nothing' atomicity publishing guarantees of MPUB,
             // rather than optimizing for batch-publishing throughput only.
             for (final byte[] data : dataList) {
-                try {
-                    publish(topic, data);
-                } catch (Exception ex) {
-                    logger.error("failed to sequentially publish message after failed MPUB call call", ex);
-                }
+                publish(topic, data);
             }
         }
     }
