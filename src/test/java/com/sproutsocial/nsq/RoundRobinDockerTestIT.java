@@ -158,8 +158,5 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
 
         List<NSQMessage> nsqMessages = handler.drainMessagesOrTimeOut(1);
         assertEquals(messages.get(0),new String(nsqMessages.get(0).getData()));
-
     }
-
-
 }

@@ -125,7 +125,12 @@ public class Publisher extends BasePubSub {
         } catch (Exception e) {
             logger.error("publish error", e);
             connectionDetails.markFailure();
-            publish(topic, dataList);
+            // We publish sequentially when we have an MPUB failure to
+            // help cover cases where perhaps the total payload size of the
+            // MPUB exceeded the nsqd -max-body-size or -max-msg-size.
+            for (final byte[] data : dataList) {
+                publish(topic, data);
+            }
         }
     }
 

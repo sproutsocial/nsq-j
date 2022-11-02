@@ -3,7 +3,9 @@ package com.sproutsocial.nsq;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 public class PublisherWithFailoverDockerTestIT extends BaseDockerTestIT {
     private Subscriber subscriber;
@@ -57,6 +59,22 @@ public class PublisherWithFailoverDockerTestIT extends BaseDockerTestIT {
         Util.sleepQuietly(TimeUnit.SECONDS.toMillis(15));
 
         sendAndVerifyMessagesFromPrimary(publisher, handler);
+    }
+
+    @Test
+    public void failedBulkPublishesPublishToFailoverSequentially() {
+        final int maxBodySize = 5242880; // This is the default nsqd max body size for any nsqd TCP message
+        final int count = 30;
+        final int bytesPerMessage = (maxBodySize + 10) / count;
+        final List<String> messages = messages(count, bytesPerMessage);
+        final List<byte[]> batch = messages
+            .stream()
+            .map(String::getBytes)
+            .collect(Collectors.toList());
+        publisher.publish(topic, batch);
+        List<NSQMessage> receivedMessages = handler.drainMessagesOrTimeOut(messages.size());
+        validateReceivedAllMessages(messages, receivedMessages, true);
+        validateFromParticularNsqd(receivedMessages, 1);
     }
 
     @Test
