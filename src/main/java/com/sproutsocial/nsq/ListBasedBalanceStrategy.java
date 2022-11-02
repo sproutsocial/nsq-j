@@ -62,6 +62,9 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
                         return candidate;
                     }
                 }
+                // We've gotten to the point where all connections have been marked as 'failed'. Rather than intentionally
+                // dropping messages on the floor, let's at least attempt to reconnect for subsequent message publishing.
+                clearAllConnections(daemonList);
                 throw new NSQException("publish failed: Unable to establish a connection with any NSQ host: " + daemonList);
             }
         });
@@ -75,8 +78,17 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
                     return candidate;
                 }
             }
+            // We've gotten to the point where all connections have been marked as 'failed'. Rather than intentionally
+            // dropping messages on the floor, let's at least attempt to reconnect for subsequent message publishing.
+            clearAllConnections(daemonList);
             throw new NSQException("publish failed: Unable to establish a connection with any NSQ host: " + daemonList);
         });
+    }
+
+    private static void clearAllConnections(final List<ConnectionDetails> daemonList) {
+	for (final ConnectionDetails daemon : daemonList) {
+	    daemon.clearConnection();
+	}
     }
 
     public ListBasedBalanceStrategy(Client client, Publisher parent, List<String> nsqd, Function<List<ConnectionDetails>, ConnectionDetails> connectionDetailsSelector) {
