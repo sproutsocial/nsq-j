@@ -39,6 +39,26 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
     }
 
     @Test
+    public void unsubscribingSubscribers() {
+        TestMessageHandler handler = new TestMessageHandler();
+        Subscriber subscriber = startSubscriber(handler, "channelA", null);
+        List<String> batch1 = messages(20, 40);
+        List<String> batch2 = messages(20, 40);
+
+        send(topic, batch1, 0, 0, publisher);
+        Util.sleepQuietly(1000);
+        // Unsubscribe after the first batch.
+        Assert.assertTrue(subscriber.unsubscribe(topic, "channelA"));
+        send(topic, batch2, 0, 0, publisher);
+
+        Util.sleepQuietly(1000);
+
+        // Ensure we only get 20 messages, even though we sent 40.
+        List<NSQMessage> consumerMessages = handler.drainMessages(20);
+        Assert.assertEquals(20, consumerMessages.size());
+    }
+
+    @Test
     public void verySlowConsumer_allMessagesReceivedByResponsiveConsumer() {
         TestMessageHandler handler = new TestMessageHandler();
         NoAckReceiver delayHandler = new NoAckReceiver(8000);
