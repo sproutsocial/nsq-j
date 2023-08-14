@@ -96,6 +96,25 @@ public class Subscriber extends BasePubSub {
         sub.checkConnections(lookupTopic(topic));
     }
 
+    /**
+     * Unsubscribe from the current topic / channel subscription. This will stop the flow of messages to the
+     * previously registered message handler.
+     *
+     * NOTE: This will *not* delete the underlying channel that might have been created during the initial subscribe
+     * call.
+     */
+    public synchronized boolean unsubscribe(String topic, String channel) {
+        for (int i = 0; i < subscriptions.size(); i++) {
+            final Subscription sub = subscriptions.get(i);
+            if (sub.getTopic().equals(topic) && sub.getChannel().equals(channel)) {
+                sub.stop();
+                subscriptions.remove(i);
+                return true;
+            }
+        }
+        return false;
+    }
+
     public synchronized void setMaxInFlight(String topic, String channel, int maxInFlight) {
         for (Subscription sub : subscriptions) {
             if (sub.getTopic().equals(topic) && sub.getChannel().equals(channel)) {
