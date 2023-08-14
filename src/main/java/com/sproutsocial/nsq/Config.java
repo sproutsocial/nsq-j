@@ -18,7 +18,7 @@ public class Config {
     private Boolean deflate;
     private Integer deflateLevel;
     private Integer sampleRate;
-    private String userAgent = "nsq-j/1.4.1";
+    private String userAgent = "nsq-j/1.4.2";
     private Integer msgTimeout;
 
     //region accessors
