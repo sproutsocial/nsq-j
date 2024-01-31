@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Note, the constructor registers a repeating task in the scheduler. The caller is responsible for invoking
@@ -208,11 +209,24 @@ class SubConnection extends Connection {
     @Override
     public synchronized void stop() {
         super.stop();
-        if (inFlight == 0) {
-            flushAndClose();
+        try {
+            logger.debug("closing conn:{}", this);
+            writeCommand("CLS");
+            flushAndReadResponse("CLOSE_WAIT");
+        } catch (IOException | NSQException e) {
+            logger.error("error sending nsqd CLS command", e);
         }
-        else {
-            setMaxInFlight(0);
+
+        if (inFlight == 0) {
+            // There are no messages in-flight. Close the connection immediately.
+            logger.debug("no messages in flight, closing immediately:{}", this);
+            flushAndClose();
+        } else {
+            // There are messages in flight, give the connection time to settle. No matter what, after
+            // 5 seconds, we force the connection to close. This matches similar behavior of the Go nsq
+            // client.
+            logger.debug("messages still in flight for sub:{}, inFlight:{} delaying closing connection by 5 seconds", this, inFlight);
+            client.getSchedExecutor().schedule(this::flushAndClose, 5, TimeUnit.SECONDS);
         }
     }
 

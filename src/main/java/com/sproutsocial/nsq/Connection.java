@@ -210,6 +210,11 @@ abstract class Connection extends BasePubSub implements Closeable {
     }
 
     @GuardedBy("this")
+    protected void writeCommand(String cmd) throws IOException {
+        out.write((cmd + "\n").getBytes(Util.US_ASCII));
+    }
+
+    @GuardedBy("this")
     protected void write(byte[] data) throws IOException {
         out.writeInt(data.length);
         out.write(data);
@@ -304,10 +309,14 @@ abstract class Connection extends BasePubSub implements Closeable {
     }
 
     protected void flushAndReadOK() throws IOException {
+        flushAndReadResponse("OK");
+    }
+
+    protected void flushAndReadResponse(final String expectedResponse) throws IOException {
         flush();
         try {
             String resp = respQueue.poll(heartbeatInterval, TimeUnit.MILLISECONDS);
-            if (!"OK".equals(resp)) {
+            if (!expectedResponse.equals(resp)) {
                 throw new NSQException("bad response:" + (resp != null ? resp : "timeout"));
             }
         }
