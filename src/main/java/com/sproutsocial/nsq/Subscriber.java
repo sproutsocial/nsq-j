@@ -104,15 +104,18 @@ public class Subscriber extends BasePubSub {
      * call.
      */
     public synchronized boolean unsubscribe(String topic, String channel) {
+        return unsubscribeSubscription(topic, channel) != null;
+    }
+
+    synchronized Subscription unsubscribeSubscription(String topic, String channel) {
         for (int i = 0; i < subscriptions.size(); i++) {
             final Subscription sub = subscriptions.get(i);
             if (sub.getTopic().equals(topic) && sub.getChannel().equals(channel)) {
                 sub.stop();
-                subscriptions.remove(i);
-                return true;
+                return subscriptions.remove(i);
             }
         }
-        return false;
+        return null;
     }
 
     public synchronized void setMaxInFlight(String topic, String channel, int maxInFlight) {
@@ -190,6 +193,7 @@ public class Subscriber extends BasePubSub {
         for (Subscription subscription : subscriptions) {
             subscription.stop();
         }
+        subscriptions.clear();
         logger.info("subscriber stopped");
     }
 

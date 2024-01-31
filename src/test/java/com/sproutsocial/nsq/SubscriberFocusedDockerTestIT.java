@@ -3,10 +3,14 @@ package com.sproutsocial.nsq;
 import org.junit.Assert;
 import org.junit.Test;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
+    private static Logger logger = LoggerFactory.getLogger(SubscriberFocusedDockerTestIT.class);
     private Publisher publisher;
     private List<Subscriber> subscribers = new ArrayList<>();
 
@@ -46,16 +50,67 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
         List<String> batch2 = messages(20, 40);
 
         send(topic, batch1, 0, 0, publisher);
-        Util.sleepQuietly(1000);
+        Util.sleepQuietly(5000);
         // Unsubscribe after the first batch.
         Assert.assertTrue(subscriber.unsubscribe(topic, "channelA"));
         send(topic, batch2, 0, 0, publisher);
 
-        Util.sleepQuietly(1000);
+        Util.sleepQuietly(5000);
 
         // Ensure we only get 20 messages, even though we sent 40.
         List<NSQMessage> consumerMessages = handler.drainMessages(20);
         Assert.assertEquals(20, consumerMessages.size());
+    }
+
+    // A message handler that deliberately processes messages "forever", to simulate
+    // in-flight message handling.
+    private static class HangingMessageHandler implements MessageHandler {
+        @Override
+        public void accept(Message msg) {
+            try {
+                Thread.sleep(Long.MAX_VALUE);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    @Test
+    public void unsubscribeWithMessagesInFlight() {
+        // Deliberately use a message handler that hangs forever, causing messages
+        // to stay in flight.
+        HangingMessageHandler handler = new HangingMessageHandler();
+        Subscriber subscriber = startSubscriber(handler, "channelA", null);
+        List<String> batch1 = messages(20, 40);
+
+        send(topic, batch1, 0, 0, publisher);
+        Util.sleepQuietly(5000);
+        final Subscription subscription = subscriber.unsubscribeSubscription(topic, "channelA");
+        Assert.assertTrue(subscription != null);
+        // Since messages are in flight, we won't close the subscription immediately
+        Assert.assertEquals(1, subscription.getConnectionCount());
+
+        // Wait for the connection count to drop to 0
+        for (int i = 0; i < 30; i++) {
+            final int count = subscription.getConnectionCount();
+            if (count > 0) {
+                logger.info("Connection count still at:{}, iteration:{}, waiting...", count, i);
+                Util.sleepQuietly(1000);
+            } else {
+                return;
+            }
+        }
+        Assert.fail("Never got to connection count 0, failing");
+    }
+
+    // A client is not allowed to send a CLS command until a SUB command
+    // has been successfully received by the server. Ensure that we can successfully
+    // unsubscribe while we still can't locate the correct nsqd from the lookup nodes.
+    @Test
+    public void unsubscribeBeforeSubscriptionIsEstablished() {
+        TestMessageHandler handler = new TestMessageHandler();
+        Subscriber subscriber = startSubscriber(handler, "channelA", null);
+        Assert.assertTrue(subscriber.unsubscribe(topic, "channelA"));
     }
 
     @Test
@@ -75,7 +130,6 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
         validateReceivedAllMessages(messages, firstConsumerMessages, false);
     }
 
-
     @Override
     public void teardown() throws InterruptedException {
         publisher.stop();
@@ -86,7 +140,7 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
         super.teardown();
     }
 
-    private Subscriber startSubscriber(TestMessageHandler handler, String channel, FailedMessageHandler failedMessageHandler) {
+    private Subscriber startSubscriber(MessageHandler handler, String channel, FailedMessageHandler failedMessageHandler) {
         Subscriber subscriber = new Subscriber(client, 1, 10, cluster.getLookupNode().getHttpHostAndPort().toString());
         subscriber.setDefaultMaxInFlight(1);
         subscriber.setMaxAttempts(5);
