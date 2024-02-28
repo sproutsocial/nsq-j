@@ -14,7 +14,7 @@ test:
 	mvn verify
 
 deploy:
-	mvn --no-transfer-progress --batch-mode deploy
+	mvn --no-transfer-progress --batch-mode deploy --skipITs=true
 
 docker_teardown:
 	$(SCRIPTS_DIR)/testCleanupDocker.sh
