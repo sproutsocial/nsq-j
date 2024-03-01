@@ -30,7 +30,9 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
 
     @Override
     public void teardown() throws InterruptedException {
-        subscriber.stop();
+        if (subscriber != null) {
+            subscriber.stop();
+        }
         if (publisher != null) {
             publisher.stop();
         }

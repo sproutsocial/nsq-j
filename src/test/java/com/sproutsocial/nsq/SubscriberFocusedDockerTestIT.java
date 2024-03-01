@@ -132,7 +132,9 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
 
     @Override
     public void teardown() throws InterruptedException {
-        publisher.stop();
+        if (publisher != null) {
+            publisher.stop();
+        }
         for (Subscriber subscriber : subscribers) {
             subscriber.stop();
         }
