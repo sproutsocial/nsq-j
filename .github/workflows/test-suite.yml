@@ -1,0 +1,20 @@
+name: execute test suite
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  execute_testsuite:
+    runs-on: ubuntu-latest
+    environment: release-env
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup build dependencies
+        run: make setup
+      - name: Set up Java
+        uses: actions/setup-java@v2
+        with:
+          distribution: temurin
+          java-version: 8
+      - name: Execute test suite
+        run: make clean test
