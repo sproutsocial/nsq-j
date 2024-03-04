@@ -273,6 +273,12 @@ abstract class Connection extends BasePubSub implements Closeable {
                 }
             }
         }
+        catch (EOFException e) {
+            if (isReading) {
+                logger.info("read thread closed connection. con:{}", toString());
+                close();
+            }
+        }
         catch (Exception e) {
             if (isReading) {
                 respQueue.offer(e.toString());
