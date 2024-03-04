@@ -18,7 +18,7 @@ public class PublisherWithFailoverDockerTestIT extends BaseDockerTestIT {
         super.setup();
         Util.sleepQuietly(500);
         handler = new TestMessageHandler();
-        subscriber = new Subscriber(client, 1, 5, cluster.getLookupNode().getHttpHostAndPort().toString());
+        subscriber = new Subscriber(client, 1, 50, cluster.getLookupNode().getHttpHostAndPort().toString());
         subscriber.subscribe(topic, "tail" + System.currentTimeMillis(), handler);
         publisher = backupPublisher();
     }
