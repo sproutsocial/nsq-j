@@ -45,12 +45,18 @@ public class BaseDockerTestIT {
 
     @After
     public void teardown() throws InterruptedException {
-        client.stop();
+        if (client != null) {
+            client.stop();
+        }
 
-        cluster.shutdown();
+        if (cluster != null) {
+            cluster.shutdown();
+        }
 
-        scheduledExecutorService.shutdown();
-        scheduledExecutorService.awaitTermination(10, TimeUnit.SECONDS);
+        if (scheduledExecutorService != null) {
+            scheduledExecutorService.shutdown();
+            scheduledExecutorService.awaitTermination(10, TimeUnit.SECONDS);
+        }
     }
 
     protected void send(String topic, List<String> msgs, double delayChance, int maxDelay, Publisher publisher) {

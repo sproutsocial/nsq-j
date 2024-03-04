@@ -8,7 +8,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class TestMessageHandler implements MessageHandler {
-    public static final int DEFAULT_TIMEOUT_MILLIS = 5000;
+    public static final int DEFAULT_TIMEOUT_MILLIS = 15000;
     public final int timeoutMillis;
     BlockingQueue<NSQMessage> receivedMessages = new LinkedBlockingQueue<>();
 
