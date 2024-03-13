@@ -213,7 +213,7 @@ class SubConnection extends Connection {
             logger.debug("closing conn:{}", this);
             writeCommand("CLS");
         } catch (IOException | NSQException e) {
-            logger.error("error sending nsqd CLS command. Closing connection immediately.", e);
+            logger.info("could not send nsqd CLS command. Closing connection immediately.", e);
             close();
             return;
         }
