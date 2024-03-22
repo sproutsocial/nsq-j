@@ -64,7 +64,7 @@ public class Publisher extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(data);
         checkArgument(data.length > 0);
-        NsqdInstance nsqdInstance = balanceStrategy.getConnectionDetails();
+        NsqdInstance nsqdInstance = balanceStrategy.getNsqdInstance();
         try {
             nsqdInstance.getCon().publish(topic, data);
         } catch (Exception e) {
@@ -84,11 +84,11 @@ public class Publisher extends BasePubSub {
         checkArgument(data.length > 0);
         checkArgument(delay > 0);
         checkNotNull(unit);
-        NsqdInstance connection = balanceStrategy.getConnectionDetails();
+        NsqdInstance instance = balanceStrategy.getNsqdInstance();
         try {
-            connection.getCon().publishDeferred(topic, data, unit.toMillis(delay));
+            instance.getCon().publishDeferred(topic, data, unit.toMillis(delay));
         } catch (Exception e) {
-            connection.markFailure();
+            instance.markFailure();
             //deferred publish does not retry
             throw new NSQException("deferred publish failed", e);
         }
@@ -104,12 +104,12 @@ public class Publisher extends BasePubSub {
         checkArgument(data.length > 0);
         checkArgument(delay > 0);
         checkNotNull(unit);
-        NsqdInstance connection = balanceStrategy.getConnectionDetails();
+        NsqdInstance instance = balanceStrategy.getNsqdInstance();
         try {
-            connection.getCon().publishDeferred(topic, data, unit.toMillis(delay));
+            instance.getCon().publishDeferred(topic, data, unit.toMillis(delay));
         } catch (Exception e) {
             logger.error("Deferred publish error", e);
-            connection.markFailure();
+            instance.markFailure();
             publishDeferredWithRetry(topic,data,delay,unit);
         }
     }
@@ -119,7 +119,7 @@ public class Publisher extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(dataList);
         checkArgument(dataList.size() > 0);
-        NsqdInstance nsqdInstance = balanceStrategy.getConnectionDetails();
+        NsqdInstance nsqdInstance = balanceStrategy.getNsqdInstance();
         try {
             nsqdInstance.getCon().publish(topic, dataList);
         } catch (Exception e) {

@@ -29,7 +29,7 @@ public class SingleNsqdBalanceStrategy extends BasePubSub implements BalanceStra
     }
 
     @Override
-    public NsqdInstance getConnectionDetails() {
+    public NsqdInstance getNsqdInstance() {
         if (!nsqdInstance.makeReady()) {
             logger.warn("We aren't able to connect just now, so we are going to sleep for {} seconds", failoverDurationSecs);
             Util.sleepQuietly(TimeUnit.SECONDS.toMillis(failoverDurationSecs));

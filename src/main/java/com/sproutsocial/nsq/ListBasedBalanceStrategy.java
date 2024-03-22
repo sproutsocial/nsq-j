@@ -15,7 +15,7 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
     private static final Logger logger = getLogger(ListBasedBalanceStrategy.class);
     protected final List<NsqdInstance> daemonList;
     private final Publisher parent;
-    private final Function<List<NsqdInstance>, NsqdInstance> connectionDetailsSelector;
+    private final Function<List<NsqdInstance>, NsqdInstance> nsqdInstanceSelector;
     private int failoverDurationSecs = 300;
 
     /**
@@ -91,25 +91,25 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
 	}
     }
 
-    public ListBasedBalanceStrategy(Client client, Publisher parent, List<String> nsqd, Function<List<NsqdInstance>, NsqdInstance> connectionDetailsSelector) {
+    public ListBasedBalanceStrategy(Client client, Publisher parent, List<String> nsqd, Function<List<NsqdInstance>, NsqdInstance> nsqdInstanceSelector) {
         super(client);
         checkNotNull(parent);
         checkNotNull(nsqd);
-        checkNotNull(connectionDetailsSelector);
+        checkNotNull(nsqdInstanceSelector);
 
         this.parent = parent;
-        this.connectionDetailsSelector = connectionDetailsSelector;
-        List<NsqdInstance> connectionDetails = new ArrayList<>();
+        this.nsqdInstanceSelector = nsqdInstanceSelector;
+        List<NsqdInstance> nsqdInstance = new ArrayList<>();
         for (String host : nsqd) {
             if (host != null)
-                connectionDetails.add(new NsqdInstance(host, this.parent, this.failoverDurationSecs, this));
+                nsqdInstance.add(new NsqdInstance(host, this.parent, this.failoverDurationSecs, this));
         }
-        daemonList = Collections.unmodifiableList(connectionDetails);
+        daemonList = Collections.unmodifiableList(nsqdInstance);
     }
 
     @Override
-    public NsqdInstance getConnectionDetails() {
-        return connectionDetailsSelector.apply(daemonList);
+    public NsqdInstance getNsqdInstance() {
+        return nsqdInstanceSelector.apply(daemonList);
     }
 
     @Override

@@ -106,7 +106,7 @@ class NsqdInstance {
 
     @Override
     public String toString() {
-        return "ConnectionDetails{" + "parent=" + parent +
+        return "NsqdInstance{" + "parent=" + parent +
                 ", hostAndPort=" + hostAndPort +
                 ", con=" + con +
                 ", failoverStart=" + failoverStart +
