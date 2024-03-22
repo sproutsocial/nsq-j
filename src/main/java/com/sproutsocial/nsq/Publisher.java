@@ -64,11 +64,11 @@ public class Publisher extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(data);
         checkArgument(data.length > 0);
-        ConnectionDetails connectionDetails = balanceStrategy.getConnectionDetails();
+        NsqdInstance nsqdInstance = balanceStrategy.getConnectionDetails();
         try {
-            connectionDetails.getCon().publish(topic, data);
+            nsqdInstance.getCon().publish(topic, data);
         } catch (Exception e) {
-            connectionDetails.markFailure();
+            nsqdInstance.markFailure();
             logger.error("publish error with", e);
             publish(topic, data);
         }
@@ -84,7 +84,7 @@ public class Publisher extends BasePubSub {
         checkArgument(data.length > 0);
         checkArgument(delay > 0);
         checkNotNull(unit);
-        ConnectionDetails connection = balanceStrategy.getConnectionDetails();
+        NsqdInstance connection = balanceStrategy.getConnectionDetails();
         try {
             connection.getCon().publishDeferred(topic, data, unit.toMillis(delay));
         } catch (Exception e) {
@@ -104,7 +104,7 @@ public class Publisher extends BasePubSub {
         checkArgument(data.length > 0);
         checkArgument(delay > 0);
         checkNotNull(unit);
-        ConnectionDetails connection = balanceStrategy.getConnectionDetails();
+        NsqdInstance connection = balanceStrategy.getConnectionDetails();
         try {
             connection.getCon().publishDeferred(topic, data, unit.toMillis(delay));
         } catch (Exception e) {
@@ -119,12 +119,12 @@ public class Publisher extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(dataList);
         checkArgument(dataList.size() > 0);
-        ConnectionDetails connectionDetails = balanceStrategy.getConnectionDetails();
+        NsqdInstance nsqdInstance = balanceStrategy.getConnectionDetails();
         try {
-            connectionDetails.getCon().publish(topic, dataList);
+            nsqdInstance.getCon().publish(topic, dataList);
         } catch (Exception e) {
             logger.error("publish error", e);
-            connectionDetails.markFailure();
+            nsqdInstance.markFailure();
             // We publish sequentially when we have an MPUB failure to
             // help cover cases where perhaps the total payload size of the
             // MPUB exceeded the nsqd -max-body-size or -max-msg-size.
