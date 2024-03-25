@@ -28,7 +28,7 @@ abstract class Connection extends BasePubSub implements Closeable {
 
     protected DataOutputStream out;
     protected DataInputStream in;
-    private volatile boolean isReading = true;
+    protected volatile boolean isReading = true;
 
     protected int msgTimeout = 60000;
     protected int heartbeatInterval = 30000;

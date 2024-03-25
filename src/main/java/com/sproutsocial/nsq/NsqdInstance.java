@@ -8,14 +8,14 @@ import java.util.concurrent.TimeUnit;
 import static org.slf4j.LoggerFactory.getLogger;
 import static com.sproutsocial.nsq.Util.*;
 
-class ConnectionDetails {
+class NsqdInstance {
     private enum State {
         CONNECTED,
         NOT_CONNECTED,
         FAILED
     }
 
-    private static final Logger LOGGER = getLogger(ConnectionDetails.class);
+    private static final Logger LOGGER = getLogger(NsqdInstance.class);
     private final Publisher parent;
     private final BasePubSub basePubSub;
     HostAndPort hostAndPort;
@@ -24,7 +24,7 @@ class ConnectionDetails {
     private volatile int failoverDurationSecs;
     private State currentState = State.NOT_CONNECTED;
 
-    public ConnectionDetails(String hostAndPort, Publisher parent, int failoverDurationSecs, BasePubSub basePubSub) {
+    public NsqdInstance(String hostAndPort, Publisher parent, int failoverDurationSecs, BasePubSub basePubSub) {
         checkNotNull(hostAndPort);
         checkNotNull(parent);
         checkNotNull(basePubSub);
@@ -73,7 +73,7 @@ class ConnectionDetails {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        ConnectionDetails that = (ConnectionDetails) o;
+        NsqdInstance that = (NsqdInstance) o;
         return hostAndPort.equals(that.hostAndPort);
     }
 
@@ -106,7 +106,7 @@ class ConnectionDetails {
 
     @Override
     public String toString() {
-        return "ConnectionDetails{" + "parent=" + parent +
+        return "NsqdInstance{" + "parent=" + parent +
                 ", hostAndPort=" + hostAndPort +
                 ", con=" + con +
                 ", failoverStart=" + failoverStart +

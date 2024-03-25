@@ -64,11 +64,11 @@ public class Publisher extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(data);
         checkArgument(data.length > 0);
-        ConnectionDetails connectionDetails = balanceStrategy.getConnectionDetails();
+        NsqdInstance nsqdInstance = balanceStrategy.getNsqdInstance();
         try {
-            connectionDetails.getCon().publish(topic, data);
+            nsqdInstance.getCon().publish(topic, data);
         } catch (Exception e) {
-            connectionDetails.markFailure();
+            nsqdInstance.markFailure();
             logger.error("publish error with", e);
             publish(topic, data);
         }
@@ -84,11 +84,11 @@ public class Publisher extends BasePubSub {
         checkArgument(data.length > 0);
         checkArgument(delay > 0);
         checkNotNull(unit);
-        ConnectionDetails connection = balanceStrategy.getConnectionDetails();
+        NsqdInstance instance = balanceStrategy.getNsqdInstance();
         try {
-            connection.getCon().publishDeferred(topic, data, unit.toMillis(delay));
+            instance.getCon().publishDeferred(topic, data, unit.toMillis(delay));
         } catch (Exception e) {
-            connection.markFailure();
+            instance.markFailure();
             //deferred publish does not retry
             throw new NSQException("deferred publish failed", e);
         }
@@ -104,12 +104,12 @@ public class Publisher extends BasePubSub {
         checkArgument(data.length > 0);
         checkArgument(delay > 0);
         checkNotNull(unit);
-        ConnectionDetails connection = balanceStrategy.getConnectionDetails();
+        NsqdInstance instance = balanceStrategy.getNsqdInstance();
         try {
-            connection.getCon().publishDeferred(topic, data, unit.toMillis(delay));
+            instance.getCon().publishDeferred(topic, data, unit.toMillis(delay));
         } catch (Exception e) {
             logger.error("Deferred publish error", e);
-            connection.markFailure();
+            instance.markFailure();
             publishDeferredWithRetry(topic,data,delay,unit);
         }
     }
@@ -119,12 +119,12 @@ public class Publisher extends BasePubSub {
         checkNotNull(topic);
         checkNotNull(dataList);
         checkArgument(dataList.size() > 0);
-        ConnectionDetails connectionDetails = balanceStrategy.getConnectionDetails();
+        NsqdInstance nsqdInstance = balanceStrategy.getNsqdInstance();
         try {
-            connectionDetails.getCon().publish(topic, dataList);
+            nsqdInstance.getCon().publish(topic, dataList);
         } catch (Exception e) {
             logger.error("publish error", e);
-            connectionDetails.markFailure();
+            nsqdInstance.markFailure();
             // We publish sequentially when we have an MPUB failure to
             // help cover cases where perhaps the total payload size of the
             // MPUB exceeded the nsqd -max-body-size or -max-msg-size.

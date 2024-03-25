@@ -13,9 +13,9 @@ import static org.slf4j.LoggerFactory.getLogger;
 
 public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrategy {
     private static final Logger logger = getLogger(ListBasedBalanceStrategy.class);
-    protected final List<ConnectionDetails> daemonList;
+    protected final List<NsqdInstance> daemonList;
     private final Publisher parent;
-    private final Function<List<ConnectionDetails>, ConnectionDetails> connectionDetailsSelector;
+    private final Function<List<NsqdInstance>, NsqdInstance> nsqdInstanceSelector;
     private int failoverDurationSecs = 300;
 
     /**
@@ -46,13 +46,13 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
     }
 
     private static ListBasedBalanceStrategy buildRoundRobinStrategy(Client client, Publisher parent, List<String> nsqd) {
-        return new ListBasedBalanceStrategy(client, parent, nsqd, new Function<List<ConnectionDetails>, ConnectionDetails>() {
+        return new ListBasedBalanceStrategy(client, parent, nsqd, new Function<List<NsqdInstance>, NsqdInstance>() {
             private int nextDaemonIndex = 0;
 
             @Override
-            public ConnectionDetails apply(List<ConnectionDetails> daemonList) {
+            public NsqdInstance apply(List<NsqdInstance> daemonList) {
                 for (int attempts = 0; attempts < daemonList.size(); attempts++) {
-                    ConnectionDetails candidate = daemonList.get(nextDaemonIndex);
+                    NsqdInstance candidate = daemonList.get(nextDaemonIndex);
                     boolean candidateReady = candidate.makeReady();
                     nextDaemonIndex++;
                     if (nextDaemonIndex >= daemonList.size()) {
@@ -73,7 +73,7 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
     private static ListBasedBalanceStrategy buildFailoverStrategy(Client client, Publisher parent, List<String> nsqd) {
         return new ListBasedBalanceStrategy(client, parent, nsqd, daemonList -> {
             for (int attempts = 0; attempts < daemonList.size(); attempts++) {
-                ConnectionDetails candidate = daemonList.get(attempts);
+                NsqdInstance candidate = daemonList.get(attempts);
                 if (candidate.makeReady()) {
                     return candidate;
                 }
@@ -85,36 +85,36 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
         });
     }
 
-    private static void clearAllConnections(final List<ConnectionDetails> daemonList) {
-	for (final ConnectionDetails daemon : daemonList) {
+    private static void clearAllConnections(final List<NsqdInstance> daemonList) {
+	for (final NsqdInstance daemon : daemonList) {
 	    daemon.clearConnection();
 	}
     }
 
-    public ListBasedBalanceStrategy(Client client, Publisher parent, List<String> nsqd, Function<List<ConnectionDetails>, ConnectionDetails> connectionDetailsSelector) {
+    public ListBasedBalanceStrategy(Client client, Publisher parent, List<String> nsqd, Function<List<NsqdInstance>, NsqdInstance> nsqdInstanceSelector) {
         super(client);
         checkNotNull(parent);
         checkNotNull(nsqd);
-        checkNotNull(connectionDetailsSelector);
+        checkNotNull(nsqdInstanceSelector);
 
         this.parent = parent;
-        this.connectionDetailsSelector = connectionDetailsSelector;
-        List<ConnectionDetails> connectionDetails = new ArrayList<>();
+        this.nsqdInstanceSelector = nsqdInstanceSelector;
+        List<NsqdInstance> nsqdInstance = new ArrayList<>();
         for (String host : nsqd) {
             if (host != null)
-                connectionDetails.add(new ConnectionDetails(host, this.parent, this.failoverDurationSecs, this));
+                nsqdInstance.add(new NsqdInstance(host, this.parent, this.failoverDurationSecs, this));
         }
-        daemonList = Collections.unmodifiableList(connectionDetails);
+        daemonList = Collections.unmodifiableList(nsqdInstance);
     }
 
     @Override
-    public ConnectionDetails getConnectionDetails() {
-        return connectionDetailsSelector.apply(daemonList);
+    public NsqdInstance getNsqdInstance() {
+        return nsqdInstanceSelector.apply(daemonList);
     }
 
     @Override
     public synchronized void connectionClosed(PubConnection closedCon) {
-        for (ConnectionDetails daemon : daemonList) {
+        for (NsqdInstance daemon : daemonList) {
             if (daemon.getCon() == closedCon) {
                 daemon.clearConnection();
                 logger.debug("removed closed publisher connection:{}", closedCon.getHost());
@@ -130,8 +130,8 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
     @Override
     public void setFailoverDurationSecs(int failoverDurationSecs) {
         this.failoverDurationSecs = failoverDurationSecs;
-        for (ConnectionDetails connectionDetails : daemonList) {
-            connectionDetails.setFailoverDurationSecs(failoverDurationSecs);
+        for (NsqdInstance nsqdInstance : daemonList) {
+            nsqdInstance.setFailoverDurationSecs(failoverDurationSecs);
         }
     }
 

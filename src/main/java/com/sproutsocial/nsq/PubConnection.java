@@ -13,6 +13,7 @@ class PubConnection extends Connection {
     }
 
     public synchronized void publish(String topic, byte[] data) throws IOException {
+        checkConnectionLiveness();
         respQueue.clear();
         writeCommand("PUB", topic);
         write(data);
@@ -20,6 +21,7 @@ class PubConnection extends Connection {
     }
 
     public synchronized void publishDeferred(String topic, byte[] data, long delayMillis) throws IOException {
+        checkConnectionLiveness();
         respQueue.clear();
         writeCommand("DPUB", topic, Long.toString(delayMillis));
         write(data);
@@ -27,6 +29,7 @@ class PubConnection extends Connection {
     }
 
     public synchronized void publish(String topic, List<byte[]> dataList) throws IOException {
+        checkConnectionLiveness();
         respQueue.clear();
         writeCommand("MPUB", topic);
         int bodySize = 4;
@@ -39,6 +42,21 @@ class PubConnection extends Connection {
             write(data);
         }
         flushAndReadOK();
+    }
+
+    /**
+     * Our connections to nsqd instances have a separate read-thread that
+     * reads responses from the nsqd. If the connection is already closed, we
+     * should not attempt to publish the message, and mark the nsqd state as
+     * failed.
+     *
+     * This might happen during normal connection shutdown initiated by the client, as well as abrupt
+     * shutdown initiated from the nsqd server itself (during maintenance, etc.)
+     */
+    private void checkConnectionLiveness() {
+        if (!isReading) {
+            throw new NSQException("Connection is already closed, aborting");
+        }
     }
 
     @Override
