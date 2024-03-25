@@ -10,13 +10,13 @@ Add a dependency using Maven
 <dependency>
   <groupId>com.sproutsocial</groupId>
   <artifactId>nsq-j</artifactId>
-  <version>1.4.3</version>
+  <version>1.4.6</version>
 </dependency>
 ```
 or Gradle
 ```
 dependencies {
-  compile 'com.sproutsocial:nsq-j:1.4.3'
+  compile 'com.sproutsocial:nsq-j:1.4.6'
 }
 ```
 
@@ -115,4 +115,15 @@ jar artifact.
 If you just want to execute the test suite, you can use:
 
 > make clean test
+
+## Releasing a new version of `nsq-j` (for maintainers)
+
+### Bump the library version
+The `nsq-j` version is referenced in several places, such as this README,
+as well as in the pom file. See a prior release PR such as [this one](https://github.com/sproutsocial/nsq-j/pull/66)
+for an example.
+
+### Create a tag for the release commit
+
+### Create a release for the new tag
 
