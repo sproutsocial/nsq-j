@@ -119,11 +119,18 @@ If you just want to execute the test suite, you can use:
 ## Releasing a new version of `nsq-j` (for maintainers)
 
 ### Bump the library version
+
 The `nsq-j` version is referenced in several places, such as this README,
 as well as in the pom file. See a prior release PR such as [this one](https://github.com/sproutsocial/nsq-j/pull/66)
 for an example.
 
-### Create a tag for the release commit
+### Creating a Release
 
-### Create a release for the new tag
+0. Make sure you've bumped the library version (see previous section)
+1. Tag the release commit with the correct version number: `v${VERSION}`.
+2. Push the tag to GitHub
+3. Create a release in the GitHub UI. You can use GitHub's "Automatically generated release notes"
+4. Once a release has been created, GitHub actions will automatically push the tagged version to Maven Central
+
+Maven central usually takes a few hours to propagate through their caching / CDN infrastructure.
 
