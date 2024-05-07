@@ -87,19 +87,24 @@ class Batcher {
     }
 
     void sendBatch() {
-        List<byte[]> toSend = null;
-        synchronized (this) {
-            if (!batch.isEmpty()) {
-                toSend = batch;
-                int capacity = Math.min(maxSize, (int) (toSend.size() * 1.2));
-                capacity = Math.max(10, capacity);
-                batch = new ArrayList<byte[]>(capacity);
-                size = 0;
+        try {
+            List<byte[]> toSend = null;
+            synchronized (this) {
+                if (!batch.isEmpty()) {
+                    toSend = batch;
+                    int capacity = Math.min(maxSize, (int) (toSend.size() * 1.2));
+                    capacity = Math.max(10, capacity);
+                    batch = new ArrayList<byte[]>(capacity);
+                    size = 0;
+                }
+            }
+            if (toSend != null) {
+                publisher.publish(topic, toSend);
             }
         }
-        if (toSend != null) {
-            publisher.publish(topic, toSend);
+        catch (Throwable t) {
+            logger.error("batch error. messages possibly list", t);
+            throw t;
         }
     }
-
 }

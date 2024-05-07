@@ -4,7 +4,7 @@
 
     <groupId>com.sproutsocial</groupId>
     <artifactId>nsq-j</artifactId>
-    <version>1.4.6</version>
+    <version>1.4.7</version>
     <packaging>jar</packaging>
 
     <name>nsq-j</name>
