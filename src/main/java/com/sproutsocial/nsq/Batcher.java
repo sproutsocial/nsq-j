@@ -103,7 +103,7 @@ class Batcher {
             }
         }
         catch (Throwable t) {
-            logger.error("batch error. messages possibly list", t);
+            logger.error("batch error. messages possibly lost", t);
             throw t;
         }
     }
