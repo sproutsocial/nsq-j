@@ -4,6 +4,7 @@ import com.bettercloud.vault.Vault;
 import com.bettercloud.vault.VaultException;
 import com.bettercloud.vault.api.Logical;
 import com.bettercloud.vault.response.LogicalResponse;
+import com.bettercloud.vault.rest.RestException;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;
 import com.sproutsocial.nsqauthj.tokens.NsqToken;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.internal.matchers.Any;
 
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
@@ -56,6 +58,56 @@ public class TestVaultTokenValidator {
 
         Optional<NsqToken> optionalNsqToken = vaultTokenValidator.validateTokenAtPath(token, userTokenPath, NsqToken.TYPE.USER, ip);
 
+        assertFalse(optionalNsqToken.isPresent());
+    }
+
+    @Test
+    public void testVaultErrorFollowedBySuccess() throws VaultException {
+        Logical logicalMock = mock(Logical.class);
+        when(mockVault.logical()).thenReturn(logicalMock);
+
+        LogicalResponse logicalResponseMock = mock(LogicalResponse.class);
+        Map<String, String> responseData = new HashMap<>();
+        responseData.put("username", "some.developer");
+        responseData.put("topics", "tw_engagement,fb_post");
+        when(logicalResponseMock.getData()).thenReturn(responseData);
+
+
+        RestException restException = mock(RestException.class);
+        when(restException.getCause()).thenReturn(new SocketTimeoutException());
+
+        VaultException vaultException = new VaultException(restException);
+
+        given(mockVault.logical().read(userTokenPath + token)).willAnswer(invocationOnMock -> { throw vaultException; }).willReturn(logicalResponseMock);
+
+        Optional<NsqToken> optionalNsqToken = vaultTokenValidator.validateTokenAtPath(token, userTokenPath, NsqToken.TYPE.USER, ip);
+
+        verify(mockVault.logical(), times(2)).read(userTokenPath + token);
+        assertTrue(optionalNsqToken.isPresent());
+    }
+
+    @Test
+    public void testVaultErrorNotRetried() throws VaultException {
+        Logical logicalMock = mock(Logical.class);
+        when(mockVault.logical()).thenReturn(logicalMock);
+
+        LogicalResponse logicalResponseMock = mock(LogicalResponse.class);
+        Map<String, String> responseData = new HashMap<>();
+        responseData.put("username", "some.developer");
+        responseData.put("topics", "tw_engagement,fb_post");
+        when(logicalResponseMock.getData()).thenReturn(responseData);
+
+
+        RestException restException = mock(RestException.class);
+        when(restException.getCause()).thenReturn(new InterruptedException());
+
+        VaultException vaultException = new VaultException(restException);
+
+        given(mockVault.logical().read(userTokenPath + token)).willAnswer(invocationOnMock -> { throw vaultException; }).willReturn(logicalResponseMock);
+
+        Optional<NsqToken> optionalNsqToken = vaultTokenValidator.validateTokenAtPath(token, userTokenPath, NsqToken.TYPE.USER, ip);
+
+        verify(mockVault.logical(), times(1)).read(userTokenPath + token);
         assertFalse(optionalNsqToken.isPresent());
     }
 

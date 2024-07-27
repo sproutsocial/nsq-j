@@ -4,3 +4,4 @@
 target/
 config.yml
 dependency-reduced-pom.xml
+.DS_Store

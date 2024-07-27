@@ -3,15 +3,16 @@ package com.sproutsocial.nsqauthj.validators;
 import com.bettercloud.vault.Vault;
 import com.bettercloud.vault.VaultException;
 import com.bettercloud.vault.response.LogicalResponse;
+import com.bettercloud.vault.rest.RestException;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.MetricRegistry;
-import com.sproutsocial.nsqauthj.NsqAuthJConfiguration;
-import com.sproutsocial.nsqauthj.configuration.TokenValidationFactory;
 import com.sproutsocial.nsqauthj.tokens.NsqToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.SocketTimeoutException;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 public class VaultTokenValidator {
     private static final Logger logger = LoggerFactory.getLogger(VaultTokenValidator.class);
@@ -28,6 +29,9 @@ public class VaultTokenValidator {
     private final Counter userCounter;
     private final Counter publishOnlyCounter;
 
+    private static final int MAX_RETRIES = 3;
+    private static final int RETRY_DELAY = 200; // time before retrying in ms
+
     public VaultTokenValidator(Vault vault, String userTokenPath, String serviceTokenPath,
                                int ttl, Boolean failOpen, MetricRegistry metricRegistry) {
         this.vault = vault;
@@ -42,14 +46,21 @@ public class VaultTokenValidator {
 
 
     public Optional<NsqToken> validateTokenAtPath(String token, String path, NsqToken.TYPE type, String remoteAddr) {
-        LogicalResponse response = null;
-        try {
-            response = this.vault.logical().read(path + token);
-        } catch (VaultException e) {
-            e.printStackTrace();
-            return Optional.empty();
+        for (int i = 1; i <= MAX_RETRIES; i++) {
+            try {
+                LogicalResponse response = this.vault.logical().read(path + token);
+                return NsqToken.fromVaultResponse(response, token, type, ttl, remoteAddr);
+            } catch (VaultException e) {
+                if (isTimeout(e)) {
+                    logger.warn("Timed out reading from Vault, retrying...", e);
+                    wait(200, TimeUnit.MILLISECONDS);
+                    continue;
+                }
+                logger.warn(e.getMessage(), e);
+                break;
+            }
         }
-        return NsqToken.fromVaultResponse(response, token, type, ttl, remoteAddr);
+        return Optional.empty();
     }
 
     public Optional<NsqToken> validateUserToken(String token, String remoteAddr) {
@@ -88,5 +99,22 @@ public class VaultTokenValidator {
 
     public Boolean getFailOpen() {
         return failOpen;
+    }
+
+    private static boolean isTimeout(VaultException e) {
+        return e.getCause() != null
+                && e.getCause() instanceof RestException
+                && e.getCause().getCause() != null
+                && e.getCause().getCause() instanceof SocketTimeoutException;
+    }
+
+
+
+    private void wait(int value, TimeUnit unit) {
+        try {
+            Thread.sleep(unit.toMillis(value));
+        } catch (InterruptedException e) {
+            logger.error("Thread interrupted while sleeping");
+        }
     }
 }
