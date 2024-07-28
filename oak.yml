@@ -1,7 +1,7 @@
 service_name: nsqauthj
 deploy_type: remote_jar
 pom_file: pom.xml
-slack_channel: eng-dbre
+slack_channel: eng-dbre-alerts
 build_target_path: target
 startup_wait_seconds: 10
 hosts:
@@ -14,14 +14,14 @@ hosts:
       up:
         set:
           type: http
-          exec: "http://localhost:8080/ping/pass?api_key=hyPhinCagCuksOk7"
+          exec: "http://localhost:8080/healthcheck/pass?api_key=hyPhinCagCuksOk7"
         check:
           type: http
-          exec: "http://localhost:8080/ping"
+          exec: "http://localhost:8080/healthcheck"
       down:
         set:
           type: http
-          exec: "http://localhost:8080/ping/fail?api_key=hyPhinCagCuksOk7"
+          exec: "http://localhost:8080/healthcheck/fail?api_key=hyPhinCagCuksOk7"
         check:
           type: http
-          exec: "http://localhost:8080/ping"
+          exec: "http://localhost:8080/healthcheck"

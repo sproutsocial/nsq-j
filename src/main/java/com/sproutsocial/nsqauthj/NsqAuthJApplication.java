@@ -5,6 +5,7 @@ import com.google.inject.Injector;
 import com.sproutsocial.configuration.dropwizard.DropwizardConfigCommonsFactoryFactory;
 import com.sproutsocial.nsqauthj.guice.TokenValidatorModule;
 import com.sproutsocial.nsqauthj.resources.AuthResource;
+import com.sproutsocial.platform.dropwizard.commons.healthcheck.HealthCheckResource;
 import io.dropwizard.Application;
 import io.dropwizard.health.conf.HealthConfiguration;
 import io.dropwizard.health.core.HealthCheckBundle;
@@ -35,5 +36,6 @@ public class NsqAuthJApplication extends Application<NsqAuthJConfiguration> {
     public void run(NsqAuthJConfiguration config, Environment env) {
         Injector injector = Guice.createInjector(new TokenValidatorModule(config, env.metrics()));
         env.jersey().register(injector.getInstance(AuthResource.class));
+        env.jersey().register(new HealthCheckResource("nsqauthj"));
     }
 }
