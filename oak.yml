@@ -5,23 +5,11 @@ slack_channel: eng-dbre-alerts
 build_target_path: target
 startup_wait_seconds: 10
 hosts:
+  - name: prod-canary
+    hostnames:
+      - prod-nsq-auth-server-useast1a-02
   - name: prod
     hostnames:
       - prod-nsq-auth-server-useast1a-02
       - prod-nsq-auth-server-useast1b-02
       - prod-nsq-auth-server-useast1d-02
-    healthchecks:
-      up:
-        set:
-          type: http
-          exec: "http://localhost:8080/healthcheck/pass?api_key=hyPhinCagCuksOk7"
-        check:
-          type: http
-          exec: "http://localhost:8080/healthcheck"
-      down:
-        set:
-          type: http
-          exec: "http://localhost:8080/healthcheck/fail?api_key=hyPhinCagCuksOk7"
-        check:
-          type: http
-          exec: "http://localhost:8080/healthcheck"
