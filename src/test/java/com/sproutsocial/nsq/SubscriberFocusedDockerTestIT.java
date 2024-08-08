@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
     private static Logger logger = LoggerFactory.getLogger(SubscriberFocusedDockerTestIT.class);
@@ -24,8 +25,8 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
     public void twoDifferentSubscribersShareMessages() {
         TestMessageHandler handler1 = new TestMessageHandler();
         TestMessageHandler handler2 = new TestMessageHandler();
-        final Subscriber subscriber1 = startSubscriber(handler1, "channelA", null);
-        final Subscriber subscriber2 = startSubscriber(handler2, "channelA", null);
+        final Subscriber subscriber1 = startSubscriber(handler1, "channelA", null, null);
+        final Subscriber subscriber2 = startSubscriber(handler2, "channelA", null, null);
         List<String> messages = messages(20, 40);
 
         send(topic, messages, 1, 200, publisher);
@@ -47,7 +48,29 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
     @Test
     public void unsubscribingSubscribers() {
         TestMessageHandler handler = new TestMessageHandler();
-        Subscriber subscriber = startSubscriber(handler, "channelA", null);
+        AtomicReference<SubscriptionId> subscriptionId = new AtomicReference<>();
+        Subscriber subscriber = startSubscriber(handler, "channelA", null, subscriptionId);
+        List<String> batch1 = messages(20, 40);
+        List<String> batch2 = messages(20, 40);
+
+        send(topic, batch1, 0, 0, publisher);
+        Util.sleepQuietly(5000);
+        // Unsubscribe after the first batch.
+        Assert.assertTrue(subscriber.unsubscribe(subscriptionId.get()));
+        send(topic, batch2, 0, 0, publisher);
+
+        Util.sleepQuietly(5000);
+
+        // Ensure we only get 20 messages, even though we sent 40.
+        List<NSQMessage> consumerMessages = handler.drainMessages(20);
+        Assert.assertEquals(20, consumerMessages.size());
+    }
+
+    @Test
+    @Deprecated
+    public void unsubscribingSubscribersByTopicAndChannel() {
+        TestMessageHandler handler = new TestMessageHandler();
+        Subscriber subscriber = startSubscriber(handler, "channelA", null, null);
         List<String> batch1 = messages(20, 40);
         List<String> batch2 = messages(20, 40);
 
@@ -83,13 +106,13 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
         // Deliberately use a message handler that hangs forever, causing messages
         // to stay in flight.
         HangingMessageHandler handler = new HangingMessageHandler();
-        Subscriber subscriber = startSubscriber(handler, "channelA", null);
+        AtomicReference<SubscriptionId> subscriptionId = new AtomicReference<>();
+        Subscriber subscriber = startSubscriber(handler, "channelA", null, subscriptionId);
         List<String> batch1 = messages(20, 40);
 
         send(topic, batch1, 0, 0, publisher);
         Util.sleepQuietly(5000);
-        final Subscription subscription = subscriber.unsubscribeSubscription(topic, "channelA");
-        Assert.assertTrue(subscription != null);
+        final Subscription subscription = subscriber.unsubscribeSubscription(subscriptionId.get());
         // Since messages are in flight, we won't close the subscription immediately
         Assert.assertEquals(1, subscription.getConnectionCount());
 
@@ -112,16 +135,17 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
     @Test
     public void unsubscribeBeforeSubscriptionIsEstablished() {
         TestMessageHandler handler = new TestMessageHandler();
-        Subscriber subscriber = startSubscriber(handler, "channelA", null);
-        Assert.assertTrue(subscriber.unsubscribe(topic, "channelA"));
+        AtomicReference<SubscriptionId> subscriptionId = new AtomicReference<>();
+        Subscriber subscriber = startSubscriber(handler, "channelA", null, subscriptionId);
+        Assert.assertTrue(subscriber.unsubscribe(subscriptionId.get()));
     }
 
     @Test
     public void verySlowConsumer_allMessagesReceivedByResponsiveConsumer() {
         TestMessageHandler handler = new TestMessageHandler();
         NoAckReceiver delayHandler = new NoAckReceiver(8000);
-        final Subscriber subscriber1 = startSubscriber(handler, "channelA", null);
-        final Subscriber subscriber2 = startSubscriber(delayHandler, "channelA", null);
+        final Subscriber subscriber1 = startSubscriber(handler, "channelA", null, null);
+        final Subscriber subscriber2 = startSubscriber(delayHandler, "channelA", null, null);
         List<String> messages = messages(40, 40);
 
         send(topic, messages, 1, 100, publisher);
@@ -146,14 +170,17 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
         super.teardown();
     }
 
-    private Subscriber startSubscriber(MessageHandler handler, String channel, FailedMessageHandler failedMessageHandler) {
+    private Subscriber startSubscriber(MessageHandler handler, String channel, FailedMessageHandler failedMessageHandler, AtomicReference<SubscriptionId> subscriptionIdRef) {
         Subscriber subscriber = new Subscriber(client, 1, 10, cluster.getLookupNode().getHttpHostAndPort().toString());
         subscriber.setDefaultMaxInFlight(1);
         subscriber.setMaxAttempts(5);
         if (failedMessageHandler != null) {
             subscriber.setFailedMessageHandler(failedMessageHandler);
         }
-        subscriber.subscribe(topic, channel, handler);
+        final SubscriptionId subscriptionId = subscriber.subscribe(topic, channel, handler);
+        if (subscriptionIdRef != null) {
+            subscriptionIdRef.set(subscriptionId);
+        }
         this.subscribers.add(subscriber);
         return subscriber;
     }
