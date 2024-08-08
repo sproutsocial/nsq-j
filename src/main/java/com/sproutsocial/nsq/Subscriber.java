@@ -241,6 +241,20 @@ public class Subscriber extends BasePubSub {
         return executor instanceof ThreadPoolExecutor ? ((ThreadPoolExecutor)executor).getQueue().size() : null;
     }
 
+    /**
+     * Return the currently in-flight message count for all active
+     * subscriptions. This count represents the number of messages that
+     * are currently being processed by the the executor service handler
+     * threads.
+     */
+    public synchronized int getCurrentInFlightCount() {
+        int inFlightCount = 0;
+        for (Subscription subscription : subscriptions) {
+            inFlightCount += subscription.getInFlightCount();
+        }
+        return inFlightCount;
+    }
+
     public synchronized int getConnectionCount() {
         int count = 0;
         for (Subscription subscription : subscriptions) {

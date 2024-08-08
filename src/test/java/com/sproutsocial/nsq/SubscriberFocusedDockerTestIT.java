@@ -24,8 +24,8 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
     public void twoDifferentSubscribersShareMessages() {
         TestMessageHandler handler1 = new TestMessageHandler();
         TestMessageHandler handler2 = new TestMessageHandler();
-        startSubscriber(handler1, "channelA", null);
-        startSubscriber(handler2, "channelA", null);
+        final Subscriber subscriber1 = startSubscriber(handler1, "channelA", null);
+        final Subscriber subscriber2 = startSubscriber(handler2, "channelA", null);
         List<String> messages = messages(20, 40);
 
         send(topic, messages, 1, 200, publisher);
@@ -34,6 +34,8 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
 
         List<NSQMessage> firstConsumerMessages = handler1.drainMessages(20);
         List<NSQMessage> secondConsumerMessages = handler2.drainMessages(20);
+        awaitNoInFlightMessages(subscriber1);
+        awaitNoInFlightMessages(subscriber2);
         Assert.assertFalse("Expect first consumer to have received some messages", firstConsumerMessages.isEmpty());
         Assert.assertFalse("Expect second consumer to have received some messages", secondConsumerMessages.isEmpty());
 
@@ -59,6 +61,7 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
 
         // Ensure we only get 20 messages, even though we sent 40.
         List<NSQMessage> consumerMessages = handler.drainMessages(20);
+        awaitNoInFlightMessages(subscriber);
         Assert.assertEquals(20, consumerMessages.size());
     }
 
@@ -117,14 +120,15 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
     public void verySlowConsumer_allMessagesReceivedByResponsiveConsumer() {
         TestMessageHandler handler = new TestMessageHandler();
         NoAckReceiver delayHandler = new NoAckReceiver(8000);
-        startSubscriber(handler, "channelA", null);
-        startSubscriber(delayHandler, "channelA", null);
+        final Subscriber subscriber1 = startSubscriber(handler, "channelA", null);
+        final Subscriber subscriber2 = startSubscriber(delayHandler, "channelA", null);
         List<String> messages = messages(40, 40);
 
         send(topic, messages, 1, 100, publisher);
 
         List<NSQMessage> firstConsumerMessages = handler.drainMessagesOrTimeOut(40, 15000);
         List<NSQMessage> delayedMessages = delayHandler.drainMessages(40);
+        awaitNoInFlightMessages(subscriber1);
         Assert.assertFalse("Expect the consumer that doesn't ack to have received some messages", delayedMessages.isEmpty());
 
         validateReceivedAllMessages(messages, firstConsumerMessages, false);
@@ -152,5 +156,9 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
         subscriber.subscribe(topic, channel, handler);
         this.subscribers.add(subscriber);
         return subscriber;
+    }
+
+    private void awaitNoInFlightMessages(final Subscriber subscriber) {
+        while (subscriber.getCurrentInFlightCount() > 0) { }
     }
 }

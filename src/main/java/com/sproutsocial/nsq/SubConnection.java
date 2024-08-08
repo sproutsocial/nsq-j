@@ -231,6 +231,10 @@ class SubConnection extends Connection {
         }
     }
 
+    public synchronized int getCurrentInFlightCount() {
+        return inFlight;
+    }
+
     @Override
     public String toString() {
         return String.format("SubCon:%s %s.%s", host.getHost(), subscription.getTopic(), subscription.getChannel());

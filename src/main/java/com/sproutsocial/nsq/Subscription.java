@@ -194,4 +194,15 @@ class Subscription extends BasePubSub {
         return connectionMap.size();
     }
 
+    public int getInFlightCount() {
+        int inFlightCount = 0;
+        synchronized (connectionMap) {
+            for (Iterator<SubConnection> iter = connectionMap.values().iterator(); iter.hasNext(); ) {
+                final SubConnection con = iter.next();
+                inFlightCount += con.getCurrentInFlightCount();
+            }
+        }
+        return inFlightCount;
+    }
+
 }
