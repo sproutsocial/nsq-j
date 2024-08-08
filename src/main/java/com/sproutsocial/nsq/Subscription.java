@@ -9,7 +9,7 @@ import java.util.concurrent.ScheduledFuture;
 import static com.sproutsocial.nsq.Util.copy;
 
 class Subscription extends BasePubSub {
-
+    private final SubscriptionId subscriptionId;
     private final String topic;
     private final String channel;
     private final MessageHandler handler;
@@ -20,13 +20,24 @@ class Subscription extends BasePubSub {
 
     private static final Logger logger = LoggerFactory.getLogger(Subscription.class);
 
-    public Subscription(Client client, String topic, String channel, MessageHandler handler, Subscriber subscriber, int maxInFlight) {
+    public Subscription(final SubscriptionId subscriptionId,
+                        final Client client,
+                        final String topic,
+                        final String channel,
+                        final MessageHandler handler,
+                        final Subscriber subscriber,
+                        final int maxInFlight) {
         super(client);
+        this.subscriptionId = subscriptionId;
         this.topic = topic;
         this.channel = channel;
         this.handler = handler;
         this.subscriber = subscriber;
         this.maxInFlight = maxInFlight;
+    }
+
+    public SubscriptionId getSubscriptionId() {
+        return subscriptionId;
     }
 
     public synchronized int getMaxInFlight() {
@@ -187,7 +198,7 @@ class Subscription extends BasePubSub {
 
     @Override
     public String toString() {
-        return String.format("subscription %s.%s connections:%s", topic, channel, connectionMap.size());
+        return String.format("subscription id %s, %s.%s connections:%s", subscriptionId, topic, channel, connectionMap.size());
     }
 
     public int getConnectionCount() {

@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.sproutsocial.nsq.Util.checkArgument;
 import static com.sproutsocial.nsq.Util.checkNotNull;
@@ -28,6 +29,7 @@ public class Subscriber extends BasePubSub {
 
     private final List<HostAndPort> lookups = new ArrayList<HostAndPort>();
     private final List<Subscription> subscriptions = new ArrayList<Subscription>();
+    private final AtomicLong subscriptionIdCounter = new AtomicLong(0L);
     private final int lookupIntervalSecs;
     private int maxLookupFailuresBeforeError;
     private int defaultMaxInFlight = 200;
@@ -65,12 +67,12 @@ public class Subscriber extends BasePubSub {
                 lookupHosts);
     }
 
-    public synchronized void subscribe(String topic, String channel, MessageHandler handler) {
-        subscribe(topic, channel, defaultMaxInFlight, handler);
+    public synchronized SubscriptionId subscribe(String topic, String channel, MessageHandler handler) {
+        return subscribe(topic, channel, defaultMaxInFlight, handler);
     }
 
-    public synchronized void subscribe(String topic, String channel, final MessageDataHandler handler) {
-        subscribe(topic, channel, defaultMaxInFlight, new BackoffHandler(new MessageHandler() {
+    public synchronized SubscriptionId subscribe(String topic, String channel, final MessageDataHandler handler) {
+        return subscribe(topic, channel, defaultMaxInFlight, new BackoffHandler(new MessageHandler() {
             @Override
             public void accept(Message msg) {
                 handler.accept(msg.getData());
@@ -82,18 +84,22 @@ public class Subscriber extends BasePubSub {
      * Subscribe to a topic.
      * If the configured executor is multi-threaded and maxInFlight > 1 (the defaults)
      * then the MessageHandler must be thread safe.
+     *
+     * @returns a {@link SubscriptionId} that can be passed back to an {@link Subscriber#unsubscribe} call.
      */
-    public synchronized void subscribe(String topic, String channel, int maxInFlight, MessageHandler handler) {
+    public synchronized SubscriptionId subscribe(String topic, String channel, int maxInFlight, MessageHandler handler) {
         checkNotNull(topic);
         checkNotNull(channel);
         checkNotNull(handler);
         client.addSubscriber(this);
-        Subscription sub = new Subscription(client, topic, channel, handler, this, maxInFlight);
+        final SubscriptionId subscriptionId = SubscriptionId.fromCounter(subscriptionIdCounter);
+        final Subscription sub = new Subscription(subscriptionId, client, topic, channel, handler, this, maxInFlight);
         if (handler instanceof BackoffHandler) {
             ((BackoffHandler)handler).setSubscription(sub); //awkward
         }
         subscriptions.add(sub);
         sub.checkConnections(lookupTopic(topic));
+        return subscriptionId;
     }
 
     /**
@@ -102,20 +108,39 @@ public class Subscriber extends BasePubSub {
      *
      * NOTE: This will *not* delete the underlying channel that might have been created during the initial subscribe
      * call.
+     *
+     * @param subscriptionId A SubscriptionId returned from a previous {@link Subscriber#subscribe call}.
+     * @return true if the subscription was successfully stopped and removed.
      */
-    public synchronized boolean unsubscribe(String topic, String channel) {
-        return unsubscribeSubscription(topic, channel) != null;
+    public synchronized boolean unsubscribe(final SubscriptionId subscriptionId) {
+        return unsubscribeSubscription(subscriptionId) != null;
     }
 
-    synchronized Subscription unsubscribeSubscription(String topic, String channel) {
+    synchronized Subscription unsubscribeSubscription(final SubscriptionId subscriptionId) {
         for (int i = 0; i < subscriptions.size(); i++) {
             final Subscription sub = subscriptions.get(i);
-            if (sub.getTopic().equals(topic) && sub.getChannel().equals(channel)) {
+            if (sub.getSubscriptionId().equals(subscriptionId)) {
                 sub.stop();
                 return subscriptions.remove(i);
             }
         }
         return null;
+    }
+
+    /**
+     * Deprecated. This method cannot handle when a single client creates two subscriptions to the same topic with the
+     * same channel name correctly.
+     */
+    @Deprecated
+    public synchronized boolean unsubscribe(String topic, String channel) {
+        for (int i = 0; i < subscriptions.size(); i++) {
+            final Subscription sub = subscriptions.get(i);
+            if (sub.getTopic().equals(topic) && sub.getChannel().equals(channel)) {
+                sub.stop();
+                return subscriptions.remove(i) != null;
+            }
+        }
+        return false;
     }
 
     public synchronized void setMaxInFlight(String topic, String channel, int maxInFlight) {
