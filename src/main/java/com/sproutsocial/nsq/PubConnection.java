@@ -3,7 +3,7 @@ package com.sproutsocial.nsq;
 import java.io.IOException;
 import java.util.List;
 
-class PubConnection extends Connection {
+public class PubConnection extends Connection {
 
     private final Publisher publisher;
 
