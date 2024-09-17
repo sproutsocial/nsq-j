@@ -62,7 +62,7 @@ class NSQMessage implements Message {
     @Override
     public void requeue(int delayMillis) {
         if (responded.compareAndSet(false, true)) {
-            connection.requeue(id, delayMillis);;
+            connection.requeue(id, delayMillis);
         }
     }
 
