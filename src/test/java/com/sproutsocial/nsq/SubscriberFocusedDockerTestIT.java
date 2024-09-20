@@ -91,10 +91,22 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
     // A message handler that deliberately processes messages "forever", to simulate
     // in-flight message handling.
     private static class HangingMessageHandler implements MessageHandler {
+        private final long delayMs;
+
+        public HangingMessageHandler() {
+            // Hang forever.
+            this(Long.MAX_VALUE);
+        }
+
+        public HangingMessageHandler(final long delayMs) {
+            this.delayMs = delayMs;
+        }
+
         @Override
         public void accept(Message msg) {
             try {
-                Thread.sleep(Long.MAX_VALUE);
+                Thread.sleep(delayMs);
+                msg.finish();
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -127,6 +139,32 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
             }
         }
         Assert.fail("Never got to connection count 0, failing");
+    }
+
+    @Test
+    public void drainInFlight() {
+        // Deliberately use a message handler that hangs for awhile, causing messages
+        // to stay in flight.
+        HangingMessageHandler handler = new HangingMessageHandler(5000);
+        AtomicReference<SubscriptionId> subscriptionId = new AtomicReference<>();
+        Subscriber subscriber = startSubscriber(handler, "channelA", null, subscriptionId);
+        List<String> batch1 = messages(20, 40);
+
+        send(topic, batch1, 0, 0, publisher);
+        Util.sleepQuietly(5000);
+        subscriber.drainInFlight();
+
+        // Wait for in-flight count to drop to 0
+        for (int i = 0; i < 30; i++) {
+            final int count = subscriber.getCurrentInFlightCount();
+            if (count > 0) {
+                logger.info("In-flight count still at:{}, iteration:{}, waiting...", count, i);
+                Util.sleepQuietly(1000);
+            } else {
+                return;
+            }
+        }
+        Assert.fail("Never got to in-flight count 0, failing");
     }
 
     // A client is not allowed to send a CLS command until a SUB command
