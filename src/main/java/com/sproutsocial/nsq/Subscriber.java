@@ -267,6 +267,17 @@ public class Subscriber extends BasePubSub {
     }
 
     /**
+     * Set all active subscriptions and their connections to maxInFlight: 0. It
+     * is still the callers responsibility to use {@link Subscriber#getCurrentInFlightCount}
+     * to verify that there are no in-flight messages before calling {@link Subscriber#stop}
+     */
+    public synchronized void drainInFlight() {
+        for (Subscription subscription : subscriptions) {
+            subscription.setMaxInFlight(0);
+        }
+    }
+
+    /**
      * Return the currently in-flight message count for all active
      * subscriptions. This count represents the number of messages that
      * are currently being processed by the the executor service handler
