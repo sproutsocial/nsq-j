@@ -22,4 +22,8 @@ public interface Message {
 
     void forceFlush();
 
+    default boolean hasResponded() {
+        return false;
+    }
+
 }

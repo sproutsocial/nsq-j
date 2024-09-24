@@ -1,6 +1,7 @@
 package com.sproutsocial.nsq;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class NSQMessage implements Message {
 
@@ -10,6 +11,7 @@ class NSQMessage implements Message {
     private final byte[] data;
     private final String topic;
     private final SubConnection connection;
+    private final AtomicBoolean responded = new AtomicBoolean();
 
     NSQMessage(long timestamp, int attempts, String id, byte[] data, String topic, SubConnection connection) {
         this.timestamp = timestamp;
@@ -47,21 +49,28 @@ class NSQMessage implements Message {
 
     @Override
     public void finish() {
-        connection.finish(id);
+        if (responded.compareAndSet(false, true)) {
+            connection.finish(id);
+        }
     }
 
     @Override
     public void requeue() {
-        connection.requeue(id);
+        requeue(0);
     }
 
     @Override
     public void requeue(int delayMillis) {
-        connection.requeue(id, delayMillis);
+        if (responded.compareAndSet(false, true)) {
+            connection.requeue(id, delayMillis);
+        }
     }
 
     @Override
     public void touch() {
+        if (responded.get()) {
+            return;
+        }
         connection.touch(id);
     }
 
@@ -72,6 +81,11 @@ class NSQMessage implements Message {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public boolean hasResponded() {
+        return responded.get();
     }
 
     SubConnection getConnection() {
