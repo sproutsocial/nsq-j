@@ -6,6 +6,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -142,7 +143,7 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
     }
 
     @Test
-    public void drainInFlight() {
+    public void drainInFlight() throws Exception {
         // Deliberately use a message handler that hangs for awhile, causing messages
         // to stay in flight.
         HangingMessageHandler handler = new HangingMessageHandler(5000);
@@ -153,18 +154,9 @@ public class SubscriberFocusedDockerTestIT extends BaseDockerTestIT {
         send(topic, batch1, 0, 0, publisher);
         Util.sleepQuietly(5000);
         subscriber.drainInFlight();
-
         // Wait for in-flight count to drop to 0
-        for (int i = 0; i < 30; i++) {
-            final int count = subscriber.getCurrentInFlightCount();
-            if (count > 0) {
-                logger.info("In-flight count still at:{}, iteration:{}, waiting...", count, i);
-                Util.sleepQuietly(1000);
-            } else {
-                return;
-            }
-        }
-        Assert.fail("Never got to in-flight count 0, failing");
+        final boolean fullyDrained = subscriber.awaitNoMessagesInFlight(Duration.ofSeconds(10));
+        Assert.assertTrue("Never got to in-flight count 0", fullyDrained);
     }
 
     // A client is not allowed to send a CLS command until a SUB command
