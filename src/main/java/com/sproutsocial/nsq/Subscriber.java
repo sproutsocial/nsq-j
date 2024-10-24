@@ -11,6 +11,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -299,4 +301,20 @@ public class Subscriber extends BasePubSub {
         return count;
     }
 
+    public boolean awaitNoMessagesInFlight(final Duration timeout) throws InterruptedException {
+        final Instant deadline = Instant.now().plus(timeout);
+        while (true) {
+            final int currentInFlight = getCurrentInFlightCount();
+            if (Instant.now().isAfter(deadline)) {
+                logger.warn("Gave up after {} waiting for all nsq-j subscribers maxInFlight to reach 0, got to: {}", timeout, currentInFlight);
+                return false;
+            }
+            if (currentInFlight == 0) {
+                logger.info("All nsq-j subscribers in-flight count hit 0, continuing");
+                return true;
+            }
+            logger.info("Awaiting in-flight message count to hit 0, currently at: {}.", currentInFlight);
+            Thread.sleep(500);
+        }
+    }
 }
