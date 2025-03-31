@@ -20,7 +20,8 @@ public class Config {
     private Integer sampleRate;
     private String userAgent = "nsq-j/1.4.9";
     private Integer msgTimeout;
-    private Boolean warnWhenNotUsingTls = true;
+
+    private boolean warnWhenNotUsingTls = true;
 
     //region accessors
     public String getClientId() {
@@ -127,11 +128,11 @@ public class Config {
         this.msgTimeout = msgTimeout;
     }
 
-    public Boolean getWarnWhenNotUsingTls() {
+    public boolean isWarnWhenNotUsingTls() {
         return warnWhenNotUsingTls;
     }
 
-    public void setWarnWhenNotUsingTls(Boolean warnWhenNotUsingTls) {
+    public void setWarnWhenNotUsingTls(boolean warnWhenNotUsingTls) {
         this.warnWhenNotUsingTls = warnWhenNotUsingTls;
     }
 

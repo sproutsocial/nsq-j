@@ -173,7 +173,7 @@ abstract class Connection extends BasePubSub implements Closeable {
             if (client.getAuthSecret() == null) {
                 throw new NSQException("nsqd requires authorization, call client.setAuthSecret before connecting");
             }
-            if (!serverConfig.getTlsV1() && (serverConfig.getWarnWhenNotUsingTls() == null || serverConfig.getWarnWhenNotUsingTls())) {
+            if (!serverConfig.getTlsV1() && serverConfig.isWarnWhenNotUsingTls()) {
                 logger.warn("authorization used without encryption. authSecret sent in plain text");
             }
             String authResponse = connectCommand("AUTH", client.getAuthSecret());
