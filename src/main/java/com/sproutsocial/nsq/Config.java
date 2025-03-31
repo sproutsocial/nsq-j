@@ -21,6 +21,8 @@ public class Config {
     private String userAgent = "nsq-j/1.4.9";
     private Integer msgTimeout;
 
+    private boolean warnWhenNotUsingTls = true;
+
     //region accessors
     public String getClientId() {
         return clientId;
@@ -125,6 +127,15 @@ public class Config {
     public void setMsgTimeout(Integer msgTimeout) {
         this.msgTimeout = msgTimeout;
     }
+
+    public boolean isWarnWhenNotUsingTls() {
+        return warnWhenNotUsingTls;
+    }
+
+    public void setWarnWhenNotUsingTls(boolean warnWhenNotUsingTls) {
+        this.warnWhenNotUsingTls = warnWhenNotUsingTls;
+    }
+
     //endregion
 
     @Override
@@ -143,6 +154,8 @@ public class Config {
                 ", sampleRate=" + sampleRate +
                 ", userAgent='" + userAgent + '\'' +
                 ", msgTimeout=" + msgTimeout +
+                ", warnWhenNotUsingTls=" + warnWhenNotUsingTls +
                 '}';
     }
+
 }
