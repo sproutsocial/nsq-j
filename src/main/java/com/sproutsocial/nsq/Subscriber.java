@@ -176,6 +176,7 @@ public class Subscriber extends BasePubSub {
                 con.setReadTimeout(30000);
                 if (con.getResponseCode() != 200) {
                     logger.debug("ignoring lookup resp:{} nsqlookupd:{} topic:{}", con.getResponseCode(), lookup, topic);
+                    con.disconnect();
                     continue;
                 }
                 in = new BufferedReader(new InputStreamReader(con.getInputStream()));
