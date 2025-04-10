@@ -18,7 +18,7 @@ public class Config {
     private Boolean deflate;
     private Integer deflateLevel;
     private Integer sampleRate;
-    private String userAgent = "nsq-j/1.5.1";
+    private String userAgent = "nsq-j/1.5.2";
     private Integer msgTimeout;
 
     private boolean warnWhenNotUsingTls = true;
