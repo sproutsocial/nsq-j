@@ -80,7 +80,7 @@ abstract class Connection extends BasePubSub implements Closeable {
             out = new DataOutputStream(new BufferedOutputStream(streams.baseOut));
         }
 
-        sendAuthorization(serverConfig);
+        sendAuthorization(serverConfig, config);
 
         scheduleAtFixedRate(new Runnable() {
             public void run() {
@@ -168,12 +168,12 @@ abstract class Connection extends BasePubSub implements Closeable {
         }
     }
 
-    private void sendAuthorization(ServerConfig serverConfig) throws IOException {
+    private void sendAuthorization(ServerConfig serverConfig, Config config) throws IOException {
         if (serverConfig.getAuthRequired() != null && serverConfig.getAuthRequired()) {
             if (client.getAuthSecret() == null) {
                 throw new NSQException("nsqd requires authorization, call client.setAuthSecret before connecting");
             }
-            if (!serverConfig.getTlsV1() && serverConfig.isWarnWhenNotUsingTls()) {
+            if (!serverConfig.getTlsV1() && config.isWarnWhenNotUsingTls()) {
                 logger.warn("authorization used without encryption. authSecret sent in plain text");
             }
             String authResponse = connectCommand("AUTH", client.getAuthSecret());
