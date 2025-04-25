@@ -22,10 +22,7 @@ public class SingleNsqdBalanceStrategy extends BasePubSub implements BalanceStra
                 "This may appear to be lock starvation. " +
                 "The client is also not resilient to failures in this mode, a single outage can result in dataloss and crashing (slowly).  "+
                 "Please use failover or round robin balance strategy to avoid these issues");
-        nsqdInstance = new NsqdInstance(nsqd,
-                parent,
-                this.failoverDurationSecs,
-                this);
+        this.nsqdInstance = new NsqdInstance(client, nsqd, parent, failoverDurationSecs);
     }
 
     @Override
