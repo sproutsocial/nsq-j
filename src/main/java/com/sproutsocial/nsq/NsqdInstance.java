@@ -5,8 +5,8 @@ import org.slf4j.Logger;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import static com.sproutsocial.nsq.Util.checkNotNull;
 import static org.slf4j.LoggerFactory.getLogger;
-import static com.sproutsocial.nsq.Util.*;
 
 class NsqdInstance {
     private enum State {
@@ -16,22 +16,22 @@ class NsqdInstance {
     }
 
     private static final Logger LOGGER = getLogger(NsqdInstance.class);
+    private final Client client;
     private final Publisher parent;
-    private final BasePubSub basePubSub;
     HostAndPort hostAndPort;
     private PubConnection con = null;
     long failoverStart = 0;
     private volatile int failoverDurationSecs;
     private State currentState = State.NOT_CONNECTED;
 
-    public NsqdInstance(String hostAndPort, Publisher parent, int failoverDurationSecs, BasePubSub basePubSub) {
+    public NsqdInstance(Client client, String hostAndPort, Publisher parent, int failoverDurationSecs) {
+        checkNotNull(client);
         checkNotNull(hostAndPort);
         checkNotNull(parent);
-        checkNotNull(basePubSub);
+        this.client = client;
         this.hostAndPort = HostAndPort.fromString(hostAndPort).withDefaultPort(4150);
         this.parent = parent;
         this.failoverDurationSecs = failoverDurationSecs;
-        this.basePubSub = basePubSub;
     }
 
     /**
@@ -57,9 +57,9 @@ class NsqdInstance {
         if (con != null) {
             con.close();
         }
-        con = new PubConnection(basePubSub.getClient(), this.hostAndPort, parent);
+        con = new PubConnection(client, hostAndPort, parent);
         try {
-            con.connect(basePubSub.getConfig());
+            con.connect(parent.getConfig());
             currentState = State.CONNECTED;
         } catch (IOException e) {
             markFailure();

@@ -92,7 +92,7 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
     }
 
 
-    @Test()
+    @Test
     public void test_allNodesDown_LaterRecovers() {
         publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(), 0);
 
@@ -123,7 +123,7 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
     }
 
 
-    @Test()
+    @Test
     public void test_twoNodesDown_LaterRecovers() {
         publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(), 0);
 
@@ -143,11 +143,14 @@ public class RoundRobinDockerTestIT extends BaseDockerTestIT {
     }
 
     @Test
-    public void test_oneNodeDown_FirstPublishDeferredThrowsException() {
+    public void test_oneNodeDown_messageStillPublished() {
         publishAndValidateRoundRobinForNodes(cluster.getNsqdNodes(),0);
         cluster.disconnectNetworkFor(cluster.getNsqdNodes().get(0));
         List<String> messages = messages(1, 20);
-        Assert.assertThrows(NSQException.class, () -> publisher.publishDeferred(topic, messages.get(0).getBytes(), 10, TimeUnit.MILLISECONDS));
+        publisher.publishDeferred(topic, messages.get(0).getBytes(), 10, TimeUnit.MILLISECONDS);
+
+        List<NSQMessage> nsqMessages = handler.drainMessagesOrTimeOut(1);
+        assertEquals(messages.get(0), new String(nsqMessages.get(0).getData()));
     }
 
     @Test

@@ -2,19 +2,19 @@ package com.sproutsocial.nsq;
 
 import org.slf4j.Logger;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.sproutsocial.nsq.Util.checkNotNull;
+import static java.util.Collections.unmodifiableList;
 import static org.slf4j.LoggerFactory.getLogger;
 
 public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrategy {
     private static final Logger logger = getLogger(ListBasedBalanceStrategy.class);
     protected final List<NsqdInstance> daemonList;
-    private final Publisher parent;
     private final Function<List<NsqdInstance>, NsqdInstance> nsqdInstanceSelector;
     private int failoverDurationSecs = 300;
 
@@ -86,9 +86,9 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
     }
 
     private static void clearAllConnections(final List<NsqdInstance> daemonList) {
-	for (final NsqdInstance daemon : daemonList) {
-	    daemon.clearConnection();
-	}
+        for (final NsqdInstance daemon : daemonList) {
+            daemon.clearConnection();
+        }
     }
 
     public ListBasedBalanceStrategy(Client client, Publisher parent, List<String> nsqd, Function<List<NsqdInstance>, NsqdInstance> nsqdInstanceSelector) {
@@ -97,14 +97,13 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
         checkNotNull(nsqd);
         checkNotNull(nsqdInstanceSelector);
 
-        this.parent = parent;
         this.nsqdInstanceSelector = nsqdInstanceSelector;
-        List<NsqdInstance> nsqdInstance = new ArrayList<>();
-        for (String host : nsqd) {
-            if (host != null)
-                nsqdInstance.add(new NsqdInstance(host, this.parent, this.failoverDurationSecs, this));
-        }
-        daemonList = Collections.unmodifiableList(nsqdInstance);
+        this.daemonList = unmodifiableList(
+            nsqd.stream()
+                .filter(Objects::nonNull)
+                .map(host -> new NsqdInstance(client, host, parent, failoverDurationSecs))
+                .collect(Collectors.toList())
+        );
     }
 
     @Override
