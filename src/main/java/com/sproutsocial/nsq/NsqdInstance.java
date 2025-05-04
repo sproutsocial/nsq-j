@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 import static com.sproutsocial.nsq.Util.checkNotNull;
 import static org.slf4j.LoggerFactory.getLogger;
 
-class NsqdInstance {
+public class NsqdInstance {
     private enum State {
         CONNECTED,
         NOT_CONNECTED,
