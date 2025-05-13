@@ -1,4 +1,6 @@
 name: execute test suite
+permissions:
+  contents: read
 on:
   workflow_dispatch:
   push:
