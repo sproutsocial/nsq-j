@@ -1,4 +1,6 @@
 name: release and push to central
+permissions:
+  contents: read
 on:
   workflow_dispatch:
   release:
