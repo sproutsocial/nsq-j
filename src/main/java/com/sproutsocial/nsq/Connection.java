@@ -89,11 +89,14 @@ abstract class Connection extends BasePubSub implements Closeable {
         }, heartbeatInterval + 2000, heartbeatInterval, false);
         lastHeartbeat = Util.clock();
 
-        readThreadFactory.newThread(new Runnable() {
+        Thread thread = readThreadFactory.newThread(new Runnable() {
             public void run() {
                 read();
             }
-        }).start();
+        });
+
+        thread.setDaemon(true);
+        thread.start();
     }
 
     private String connectCommand(String command, byte[] data) throws IOException {
