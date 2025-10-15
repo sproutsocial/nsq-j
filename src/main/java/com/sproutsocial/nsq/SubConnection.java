@@ -195,6 +195,12 @@ class SubConnection extends Connection {
     }
 
     @Override
+    protected void handleAuthFailure() {
+        // Trigger immediate reconnection when auth session expires
+        subscription.getSubscriber().immediateCheckConnections(topic);
+    }
+
+    @Override
     public void close() {
         super.close();
         //be paranoid about locks, we only care that this happens sometime soon
