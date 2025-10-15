@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Unit tests that verify E_AUTH_FAILED and E_UNAUTHORIZED errors are properly caught
- * and trigger the auth failure recovery mechanism.
+ * and trigger the auth failure recovery mechanism using NSQException with error codes.
  */
 public class ConnectionAuthFailureTest {
 
@@ -33,7 +33,7 @@ public class ConnectionAuthFailureTest {
     }
 
     /**
-     * Test that E_AUTH_FAILED error throws AuthFailedException
+     * Test that E_AUTH_FAILED error throws NSQException with AUTH_FAILED error code
      */
     @Test
     public void testEAuthFailedThrowsAuthFailedException() {
@@ -44,19 +44,21 @@ public class ConnectionAuthFailureTest {
 
         try {
             connection.testReadResponse();
-            Assert.fail("Expected AuthFailedException to be thrown");
-        } catch (AuthFailedException e) {
+            Assert.fail("Expected NSQException to be thrown");
+        } catch (NSQException e) {
+            Assert.assertEquals("Should have AUTH_FAILED error code",
+                            NSQErrorCode.AUTH_FAILED, e.getErrorCode());
             Assert.assertTrue("Exception message should contain E_AUTH_FAILED",
                             e.getMessage().contains("E_AUTH_FAILED"));
             Assert.assertTrue("Exception message should mention auth session",
                             e.getMessage().contains("auth session expired"));
         } catch (IOException e) {
-            Assert.fail("Expected AuthFailedException but got IOException: " + e.getMessage());
+            Assert.fail("Expected NSQException but got IOException: " + e.getMessage());
         }
     }
 
     /**
-     * Test that E_UNAUTHORIZED error throws AuthFailedException
+     * Test that E_UNAUTHORIZED error throws NSQException with AUTH_FAILED error code
      */
     @Test
     public void testEUnauthorizedThrowsAuthFailedException() {
@@ -67,17 +69,19 @@ public class ConnectionAuthFailureTest {
 
         try {
             connection.testReadResponse();
-            Assert.fail("Expected AuthFailedException to be thrown");
-        } catch (AuthFailedException e) {
+            Assert.fail("Expected NSQException to be thrown");
+        } catch (NSQException e) {
+            Assert.assertEquals("Should have AUTH_FAILED error code",
+                            NSQErrorCode.AUTH_FAILED, e.getErrorCode());
             Assert.assertTrue("Exception message should contain E_UNAUTHORIZED",
                             e.getMessage().contains("E_UNAUTHORIZED"));
         } catch (IOException e) {
-            Assert.fail("Expected AuthFailedException but got IOException: " + e.getMessage());
+            Assert.fail("Expected NSQException but got IOException: " + e.getMessage());
         }
     }
 
     /**
-     * Test that E_AUTH_FAILED with additional text still throws AuthFailedException
+     * Test that E_AUTH_FAILED with additional text still throws NSQException with AUTH_FAILED error code
      */
     @Test
     public void testEAuthFailedWithDetailsThrowsAuthFailedException() {
@@ -88,17 +92,19 @@ public class ConnectionAuthFailureTest {
 
         try {
             connection.testReadResponse();
-            Assert.fail("Expected AuthFailedException to be thrown");
-        } catch (AuthFailedException e) {
+            Assert.fail("Expected NSQException to be thrown");
+        } catch (NSQException e) {
+            Assert.assertEquals("Should have AUTH_FAILED error code",
+                            NSQErrorCode.AUTH_FAILED, e.getErrorCode());
             Assert.assertTrue("Exception message should contain the full error",
                             e.getMessage().contains("session expired after 3600 seconds"));
         } catch (IOException e) {
-            Assert.fail("Expected AuthFailedException but got IOException: " + e.getMessage());
+            Assert.fail("Expected NSQException but got IOException: " + e.getMessage());
         }
     }
 
     /**
-     * Test that other error codes throw NSQException, not AuthFailedException
+     * Test that other error codes throw NSQException with GENERAL error code
      */
     @Test
     public void testOtherErrorsThrowNSQException() {
@@ -110,9 +116,9 @@ public class ConnectionAuthFailureTest {
         try {
             connection.testReadResponse();
             Assert.fail("Expected NSQException to be thrown");
-        } catch (AuthFailedException e) {
-            Assert.fail("Should not throw AuthFailedException for non-auth errors");
         } catch (NSQException e) {
+            Assert.assertEquals("Should have GENERAL error code",
+                            NSQErrorCode.GENERAL, e.getErrorCode());
             Assert.assertTrue("Exception message should contain the error",
                             e.getMessage().contains("E_INVALID"));
         } catch (IOException e) {
@@ -176,7 +182,7 @@ public class ConnectionAuthFailureTest {
                     return null;
                 }
                 else if (errorCode.equals("E_AUTH_FAILED") || errorCode.equals("E_UNAUTHORIZED")) {
-                    throw new AuthFailedException("auth session expired on nsqd:" + error);
+                    throw new NSQException("auth session expired on nsqd:" + error, NSQErrorCode.AUTH_FAILED);
                 }
                 else {
                     throw new NSQException("error from nsqd:" + error);

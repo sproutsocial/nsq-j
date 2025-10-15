@@ -170,10 +170,9 @@ public class Subscriber extends BasePubSub {
         if (isStopping) {
             return;
         }
-        Set<HostAndPort> activeHosts = lookupTopic(topic);
         for (Subscription sub : subscriptions) {
             if (sub.getTopic().equals(topic)) {
-                sub.checkConnections(activeHosts);
+                sub.checkConnections(lookupTopic(topic));
             }
         }
     }

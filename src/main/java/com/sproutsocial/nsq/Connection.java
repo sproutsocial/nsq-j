@@ -245,7 +245,7 @@ abstract class Connection extends BasePubSub implements Closeable {
                 logger.warn("non fatal nsqd error:{} probably due to message timeout", error);
             }
             else if (authErrors.contains(errorCode)) {
-                throw new AuthFailedException("auth session expired on nsqd:" + error);
+                throw new NSQException("auth session expired on nsqd:" + error, NSQErrorCode.AUTH_FAILED);
             }
             else {
                 throw new NSQException("error from nsqd:" + error);
@@ -284,11 +284,18 @@ abstract class Connection extends BasePubSub implements Closeable {
                 close();
             }
         }
-        catch (AuthFailedException e) {
+        catch (NSQException e) {
             if (isReading) {
-                logger.warn("auth session expired, triggering immediate reconnect. con:{}", toString());
-                close();
-                handleAuthFailure();
+                if (e.getErrorCode() == NSQErrorCode.AUTH_FAILED) {
+                    logger.warn("auth session expired, triggering immediate reconnect. con:{}", toString());
+                    close();
+                    handleAuthFailure();
+                }
+                else {
+                    respQueue.offer(e.toString());
+                    close();
+                    logger.error("read thread exception. con:{}", toString(), e);
+                }
             }
         }
         catch (Exception e) {
