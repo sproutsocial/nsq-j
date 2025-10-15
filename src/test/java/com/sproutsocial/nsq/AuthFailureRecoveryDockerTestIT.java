@@ -9,15 +9,16 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Integration test for auth failure recovery behavior.
+ * Integration test for immediate reconnection behavior.
  *
- * This test validates that when E_AUTH_FAILED or E_UNAUTHORIZED errors occur,
- * the client triggers immediate reconnection rather than waiting up to 60 seconds
- * for the periodic checkConnections() call.
+ * These tests verify that the immediateCheckConnections() method (which is called
+ * when auth failures occur) works correctly to trigger immediate reconnection
+ * rather than waiting up to 60 seconds for the periodic checkConnections() call.
  *
- * Note: These tests verify the reconnection mechanism exists and works correctly.
- * Simulating actual NSQ auth session expiration requires NSQ to be configured with
- * authentication, which is beyond the scope of this test suite.
+ * Note: Actual E_AUTH_FAILED/E_UNAUTHORIZED error handling is tested in
+ * ConnectionAuthFailureTest, which verifies those errors throw AuthFailedException
+ * and trigger the handleAuthFailure() -> immediateCheckConnections() code path.
+ * These integration tests verify the reconnection mechanism itself works correctly.
  */
 public class AuthFailureRecoveryDockerTestIT extends BaseDockerTestIT {
     private static final Logger logger = LoggerFactory.getLogger(AuthFailureRecoveryDockerTestIT.class);
