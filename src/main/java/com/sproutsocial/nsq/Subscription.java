@@ -72,10 +72,10 @@ class Subscription extends BasePubSub {
                     connectionMap.put(activeHost, con);
                 }
                 catch (Exception e) {
+                    logger.error("error connecting to:{}, interrupted:{}", activeHost, Thread.interrupted(), e);
                     if(con != null) {
                         con.close();
                     }
-                    logger.error("error connecting to:{}", activeHost, e);
                 }
             }
         }
