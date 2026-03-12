@@ -162,6 +162,21 @@ public class Subscriber extends BasePubSub {
         }
     }
 
+    /**
+     * Immediately checks connections for a specific topic. This bypasses the normal periodic
+     * lookup interval and is used for immediate reconnection when auth failures occur.
+     */
+    synchronized void immediateCheckConnections(String topic) {
+        if (isStopping) {
+            return;
+        }
+        for (Subscription sub : subscriptions) {
+            if (sub.getTopic().equals(topic)) {
+                sub.checkConnections(lookupTopic(topic));
+            }
+        }
+    }
+
     @GuardedBy("this")
     protected Set<HostAndPort> lookupTopic(String topic) {
         Set<HostAndPort> nsqds = new HashSet<HostAndPort>();

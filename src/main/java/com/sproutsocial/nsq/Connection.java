@@ -44,6 +44,8 @@ abstract class Connection extends BasePubSub implements Closeable {
     private static final ThreadFactory readThreadFactory = Util.threadFactory("nsq-read");
     private static final Set<String> nonFatalErrors = Collections.unmodifiableSet(new HashSet<String>(
             Arrays.asList("E_FIN_FAILED", "E_REQ_FAILED", "E_TOUCH_FAILED")));
+    private static final Set<String> authErrors = Collections.unmodifiableSet(new HashSet<String>(
+            Arrays.asList("E_AUTH_FAILED", "E_UNAUTHORIZED")));
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
 
@@ -242,6 +244,9 @@ abstract class Connection extends BasePubSub implements Closeable {
             if (nonFatalErrors.contains(errorCode)) {
                 logger.warn("non fatal nsqd error:{} probably due to message timeout", error);
             }
+            else if (authErrors.contains(errorCode)) {
+                throw new NSQException("auth session expired on nsqd:" + error, NSQErrorCode.AUTH_FAILED);
+            }
             else {
                 throw new NSQException("error from nsqd:" + error);
             }
@@ -279,6 +284,20 @@ abstract class Connection extends BasePubSub implements Closeable {
                 close();
             }
         }
+        catch (NSQException e) {
+            if (isReading) {
+                if (e.getErrorCode() == NSQErrorCode.AUTH_FAILED) {
+                    logger.warn("auth session expired, triggering immediate reconnect. con:{}", toString());
+                    close();
+                    handleAuthFailure();
+                }
+                else {
+                    respQueue.offer(e.toString());
+                    close();
+                    logger.error("read thread exception. con:{}", toString(), e);
+                }
+            }
+        }
         catch (Exception e) {
             if (isReading) {
                 respQueue.offer(e.toString());
@@ -287,6 +306,13 @@ abstract class Connection extends BasePubSub implements Closeable {
             }
         }
         logger.debug("read loop done {}", toString());
+    }
+
+    /**
+     * Called when auth session expires. Override in subclasses to trigger immediate reconnection.
+     */
+    protected void handleAuthFailure() {
+        // Base implementation does nothing. Overridden by SubConnection.
     }
 
     private synchronized void receivedHeartbeat() {
