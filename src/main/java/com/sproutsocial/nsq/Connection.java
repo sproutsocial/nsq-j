@@ -10,6 +10,7 @@ import java.lang.management.ManagementFactory;
 import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -271,6 +272,12 @@ abstract class Connection extends BasePubSub implements Closeable {
                 else if (response != null) {
                     respQueue.offer(response);
                 }
+            }
+        }
+        catch (SocketTimeoutException e) {
+            if (isReading) {
+                logger.warn("read thread socket timeout. con:{}", toString());
+                close();
             }
         }
         catch (EOFException e) {
