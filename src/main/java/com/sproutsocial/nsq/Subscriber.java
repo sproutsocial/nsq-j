@@ -34,6 +34,7 @@ public class Subscriber extends BasePubSub {
     private final AtomicLong subscriptionIdCounter = new AtomicLong(0L);
     private final int lookupIntervalSecs;
     private int maxLookupFailuresBeforeError;
+    private int lookupTimeoutMillis = DEFAULT_LOOKUP_TIMEOUT_MILLIS;
     private int defaultMaxInFlight = 200;
     private int maxFlushDelayMillis = 2000;
     private int maxAttempts = Integer.MAX_VALUE;
@@ -42,6 +43,7 @@ public class Subscriber extends BasePubSub {
 
     private static final int DEFAULT_LOOKUP_INTERVAL_SECS = 60;
     private static final int DEFAULT_MAX_LOOKUP_FAILURES_BEFORE_ERROR = 5;
+    private static final int DEFAULT_LOOKUP_TIMEOUT_MILLIS = 30000;
 
     private static final Logger logger = LoggerFactory.getLogger(Subscriber.class);
 
@@ -168,15 +170,15 @@ public class Subscriber extends BasePubSub {
         for (HostAndPort lookup : lookups) {
             String urlString = null;
             BufferedReader in = null;
+            HttpURLConnection con = null;
             try {
                 urlString = String.format("http://%s/lookup?topic=%s", lookup, URLEncoder.encode(topic, "UTF-8"));
                 URL url = new URL(urlString);
-                HttpURLConnection con = (HttpURLConnection) url.openConnection();
-                con.setConnectTimeout(30000);
-                con.setReadTimeout(30000);
+                con = (HttpURLConnection) url.openConnection();
+                con.setConnectTimeout(lookupTimeoutMillis);
+                con.setReadTimeout(lookupTimeoutMillis);
                 if (con.getResponseCode() != 200) {
                     logger.debug("ignoring lookup resp:{} nsqlookupd:{} topic:{}", con.getResponseCode(), lookup, topic);
-                    con.disconnect();
                     continue;
                 }
                 in = new BufferedReader(new InputStreamReader(con.getInputStream()));
@@ -210,6 +212,9 @@ public class Subscriber extends BasePubSub {
             }
             finally {
                 Util.closeQuietly(in);
+                if (con != null) {
+                    con.disconnect();
+                }
             }
         }
         return nsqds;
@@ -262,6 +267,15 @@ public class Subscriber extends BasePubSub {
 
     public synchronized int getLookupIntervalSecs() {
         return lookupIntervalSecs;
+    }
+
+    public synchronized int getLookupTimeoutMillis() {
+        return lookupTimeoutMillis;
+    }
+
+    public synchronized void setLookupTimeoutMillis(int lookupTimeoutMillis) {
+        checkArgument(lookupTimeoutMillis > 0);
+        this.lookupTimeoutMillis = lookupTimeoutMillis;
     }
 
     public Integer getExecutorQueueSize() {
