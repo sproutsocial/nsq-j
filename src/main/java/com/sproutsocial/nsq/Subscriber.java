@@ -200,7 +200,7 @@ public class Subscriber extends BasePubSub {
                 lookupFailureCount++;
                 this.failures.put(urlString, lookupFailureCount);
 
-                if (lookupFailureCount >= this.maxLookupFailuresBeforeError) {
+                if (lookupFailureCount == this.maxLookupFailuresBeforeError) {
                     logger.error("lookup failure. lookup failed for {} consecutive tries. nsqlookupd:{} topic:{}",
                             lookupFailureCount, lookup, topic, e);
                 } else {
