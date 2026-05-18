@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: release-env
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v6
       - name: Setup build dependencies
         run: make setup
       - name: Set up Java for publishing to Maven Central Repository
