@@ -328,7 +328,7 @@ abstract class Connection extends BasePubSub implements Closeable {
         }
         catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new NSQException("read interrupted");
+            throw new NSQInterruptedException("read interrupted", e);
         }
     }
 

@@ -67,6 +67,8 @@ public class Publisher extends BasePubSub {
         NsqdInstance nsqdInstance = balanceStrategy.getNsqdInstance();
         try {
             nsqdInstance.getCon().publish(topic, data);
+        } catch (NSQInterruptedException e) {
+            throw e;
         } catch (Exception e) {
             nsqdInstance.markFailure();
             logger.error("publish error with", e);
@@ -87,6 +89,8 @@ public class Publisher extends BasePubSub {
         NsqdInstance instance = balanceStrategy.getNsqdInstance();
         try {
             instance.getCon().publishDeferred(topic, data, unit.toMillis(delay));
+        } catch (NSQInterruptedException e) {
+            throw e;
         } catch (Exception e) {
             instance.markFailure();
             //deferred publish does not retry
@@ -107,6 +111,8 @@ public class Publisher extends BasePubSub {
         NsqdInstance instance = balanceStrategy.getNsqdInstance();
         try {
             instance.getCon().publishDeferred(topic, data, unit.toMillis(delay));
+        } catch (NSQInterruptedException e) {
+            throw e;
         } catch (Exception e) {
             logger.error("Deferred publish error", e);
             instance.markFailure();
@@ -122,6 +128,8 @@ public class Publisher extends BasePubSub {
         NsqdInstance nsqdInstance = balanceStrategy.getNsqdInstance();
         try {
             nsqdInstance.getCon().publish(topic, dataList);
+        } catch (NSQInterruptedException e) {
+            throw e;
         } catch (Exception e) {
             logger.error("publish error", e);
             nsqdInstance.markFailure();

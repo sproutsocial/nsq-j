@@ -3,3 +3,5 @@ target
 *.iml
 *.pyc
 dependency-reduced-pom.xml
+# CocoIndex Code (ccc)
+/.cocoindex_code/

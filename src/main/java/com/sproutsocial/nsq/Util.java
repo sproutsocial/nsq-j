@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -19,27 +20,19 @@ import java.util.concurrent.atomic.AtomicLong;
 
 class Util {
 
-    public static final Charset US_ASCII = Charset.forName("US-ASCII");
-    public static final Charset UTF_8 = Charset.forName("UTF-8");
+    public static final Charset US_ASCII = StandardCharsets.US_ASCII;
+    public static final Charset UTF_8 = StandardCharsets.UTF_8;
 
     private static final Logger logger = LoggerFactory.getLogger(Util.class);
 
     public static ThreadFactory threadFactory(final String name) {
         final AtomicLong count = new AtomicLong();
-        return new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable runnable) {
-                Thread thread = Executors.defaultThreadFactory().newThread(runnable);
-                thread.setName(name + "-" + Long.toString(count.getAndIncrement()));
-                //doesn't catch everything, just for extra safety
-                thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-                    @Override
-                    public void uncaughtException(Thread t, Throwable e) {
-                        logger.error("uncaught error", e);
-                    }
-                });
-                return thread;
-            }
+        return runnable -> {
+            Thread thread = Executors.defaultThreadFactory().newThread(runnable);
+            thread.setName(name + "-" + count.getAndIncrement());
+            //doesn't catch everything, just for extra safety
+            thread.setUncaughtExceptionHandler((t, e) -> logger.error("uncaught error", e));
+            return thread;
         };
     }
 

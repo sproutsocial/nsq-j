@@ -62,6 +62,9 @@ class NsqdInstance {
             con.connect(parent.getConfig());
             currentState = State.CONNECTED;
         } catch (IOException e) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw new NSQInterruptedException("connect interrupted");
+            }
             markFailure();
             return false;
         }
@@ -90,6 +93,13 @@ class NsqdInstance {
         LOGGER.warn("Marking the connection to host {} as failed , will retry after {} seconds", hostAndPort, this.failoverDurationSecs);
     }
 
+    synchronized void markFailureIfNotAlready() {
+        if (currentState != State.FAILED) {
+            markFailure();
+        }
+        // if already FAILED, preserve existing failoverStart so the timer can expire naturally
+    }
+
     public void setFailoverDurationSecs(int failoverDurationSecs) {
         this.failoverDurationSecs = failoverDurationSecs;
     }
@@ -100,6 +110,7 @@ class NsqdInstance {
     }
 
     public void clearConnection() {
+        Util.closeQuietly(con);
         this.con = null;
         currentState = State.NOT_CONNECTED;
     }
