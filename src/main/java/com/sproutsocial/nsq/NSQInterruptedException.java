@@ -5,7 +5,7 @@ public class NSQInterruptedException extends NSQException {
         super(message);
     }
 
-    public NSQInterruptedException(String message, InterruptedException cause) {
+    public NSQInterruptedException(String message, Throwable cause) {
         super(message, cause);
     }
 }

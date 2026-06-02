@@ -19,7 +19,7 @@ class NsqdInstance {
     private final Client client;
     private final Publisher parent;
     HostAndPort hostAndPort;
-    private PubConnection con = null;
+    PubConnection con = null;
     long failoverStart = 0;
     private volatile int failoverDurationSecs;
     private State currentState = State.NOT_CONNECTED;
@@ -63,7 +63,7 @@ class NsqdInstance {
             currentState = State.CONNECTED;
         } catch (IOException e) {
             if (Thread.currentThread().isInterrupted()) {
-                throw new NSQInterruptedException("connect interrupted");
+                throw new NSQInterruptedException("connect interrupted", e);
             }
             markFailure();
             return false;

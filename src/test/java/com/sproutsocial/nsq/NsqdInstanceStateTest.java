@@ -3,7 +3,6 @@ package com.sproutsocial.nsq;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -48,13 +47,6 @@ public class NsqdInstanceStateTest {
         return new NsqdInstance(Client.getDefaultClient(), "localhost:4150", stubPublisher(), 300);
     }
 
-    /** Injects a PubConnection into NsqdInstance.con via reflection (field is private). */
-    private static void injectCon(NsqdInstance instance, PubConnection con) throws Exception {
-        Field field = NsqdInstance.class.getDeclaredField("con");
-        field.setAccessible(true);
-        field.set(instance, con);
-    }
-
     @Test
     public void markFailureIfNotAlready_setsFailoverStartWhenNotConnected() {
         NsqdInstance instance = freshInstance();
@@ -80,12 +72,12 @@ public class NsqdInstanceStateTest {
     }
 
     @Test
-    public void clearConnection_closesSocketBeforeNullingReference() throws Exception {
+    public void clearConnection_closesSocketBeforeNullingReference() {
         Publisher publisher = stubPublisher();
         NsqdInstance instance = new NsqdInstance(
                 Client.getDefaultClient(), "localhost:4150", publisher, 300);
         TrackingPubConnection con = new TrackingPubConnection(Client.getDefaultClient(), publisher);
-        injectCon(instance, con);
+        instance.con = con;
 
         instance.clearConnection();
 
