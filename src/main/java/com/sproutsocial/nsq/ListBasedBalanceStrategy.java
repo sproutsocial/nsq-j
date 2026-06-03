@@ -62,8 +62,9 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
                         return candidate;
                     }
                 }
-                // We've gotten to the point where all connections have been marked as 'failed'. Rather than intentionally
-                // dropping messages on the floor, let's at least attempt to reconnect for subsequent message publishing.
+                // All hosts are in FAILED state and none have exceeded the failover backoff yet.
+                // Emit an error log and enforce the backoff — reconnection will be attempted naturally
+                // once failoverDurationSecs elapses.
                 clearAllConnections(daemonList);
                 throw new NSQException("publish failed: Unable to establish a connection with any NSQ host: " + daemonList);
             }
@@ -78,16 +79,18 @@ public class ListBasedBalanceStrategy extends BasePubSub implements BalanceStrat
                     return candidate;
                 }
             }
-            // We've gotten to the point where all connections have been marked as 'failed'. Rather than intentionally
-            // dropping messages on the floor, let's at least attempt to reconnect for subsequent message publishing.
+            // All hosts are in FAILED state and none have exceeded the failover backoff yet.
+            // Emit an error log and enforce the backoff — reconnection will be attempted naturally
+            // once failoverDurationSecs elapses.
             clearAllConnections(daemonList);
             throw new NSQException("publish failed: Unable to establish a connection with any NSQ host: " + daemonList);
         });
     }
 
     private static void clearAllConnections(final List<NsqdInstance> daemonList) {
+        logger.error("All NSQ hosts exhausted; failover backoff enforced for all hosts. hosts={}", daemonList);
         for (final NsqdInstance daemon : daemonList) {
-            daemon.clearConnection();
+            daemon.markFailureIfNotAlready();
         }
     }
 

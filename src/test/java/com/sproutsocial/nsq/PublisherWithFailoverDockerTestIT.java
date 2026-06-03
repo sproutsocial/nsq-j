@@ -93,9 +93,10 @@ public class PublisherWithFailoverDockerTestIT extends BaseDockerTestIT {
 
         assertTrue(exceptionTriggered);
 
-        // As soon as the network flakiness subsides, we should be in a state
-        // where publishing succeeds again immediately.
         cluster.getNsqdNodes().forEach(cluster::reconnectNetworkFor);
+        // After a total-failure sweep all hosts are in FAILED state.  Wait for
+        // the failover backoff to expire (backupPublisher uses 5 s) before publishing.
+        Util.sleepQuietly(TimeUnit.SECONDS.toMillis(6));
 
         sendAndVerifyMessagesFromPrimary(publisher, handler);
     }

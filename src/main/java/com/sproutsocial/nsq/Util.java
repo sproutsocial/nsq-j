@@ -5,11 +5,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledFuture;
@@ -19,27 +19,16 @@ import java.util.concurrent.atomic.AtomicLong;
 
 class Util {
 
-    public static final Charset US_ASCII = Charset.forName("US-ASCII");
-    public static final Charset UTF_8 = Charset.forName("UTF-8");
-
     private static final Logger logger = LoggerFactory.getLogger(Util.class);
 
     public static ThreadFactory threadFactory(final String name) {
         final AtomicLong count = new AtomicLong();
-        return new ThreadFactory() {
-            @Override
-            public Thread newThread(Runnable runnable) {
-                Thread thread = Executors.defaultThreadFactory().newThread(runnable);
-                thread.setName(name + "-" + Long.toString(count.getAndIncrement()));
-                //doesn't catch everything, just for extra safety
-                thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-                    @Override
-                    public void uncaughtException(Thread t, Throwable e) {
-                        logger.error("uncaught error", e);
-                    }
-                });
-                return thread;
-            }
+        return runnable -> {
+            Thread thread = Executors.defaultThreadFactory().newThread(runnable);
+            thread.setName(name + "-" + count.getAndIncrement());
+            //doesn't catch everything, just for extra safety
+            thread.setUncaughtExceptionHandler((t, e) -> logger.error("uncaught error", e));
+            return thread;
         };
     }
 
@@ -129,7 +118,7 @@ class Util {
     }
 
     public static boolean equal(Object a, Object b) {
-        return a == b || (a != null && a.equals(b));
+        return Objects.equals(a, b);
     }
 
     public static int hashCode(Object... objects) {
