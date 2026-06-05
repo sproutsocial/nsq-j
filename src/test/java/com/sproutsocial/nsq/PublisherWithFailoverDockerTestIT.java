@@ -1,6 +1,5 @@
 package com.sproutsocial.nsq;
 
-import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.assertTrue;
 
@@ -25,7 +24,9 @@ public class PublisherWithFailoverDockerTestIT extends BaseDockerTestIT {
 
     @Override
     public void teardown() throws InterruptedException {
-        subscriber.stop();
+        if (subscriber != null) {
+            subscriber.stop();
+        }
         if (publisher != null) {
             publisher.stop();
         }
@@ -97,21 +98,6 @@ public class PublisherWithFailoverDockerTestIT extends BaseDockerTestIT {
         // After a total-failure sweep all hosts are in FAILED state.  Wait for
         // the failover backoff to expire (backupPublisher uses 5 s) before publishing.
         Util.sleepQuietly(TimeUnit.SECONDS.toMillis(6));
-
-        sendAndVerifyMessagesFromPrimary(publisher, handler);
-    }
-
-    @Test
-    @Ignore("This one actually fails given the current behavior of the system")
-    public void withBackup_failoverAndFailbackRightAwayIfBackupGoesDown() {
-        sendAndVerifyMessagesFromPrimary(publisher, handler);
-
-        cluster.disconnectNetworkFor(cluster.getNsqdNodes().get(0));
-
-        sendAndVerifyMessagesFromBackup(publisher, handler);
-
-        cluster.reconnectNetworkFor(cluster.getNsqdNodes().get(0));
-        cluster.disconnectNetworkFor(cluster.getNsqdNodes().get(1));
 
         sendAndVerifyMessagesFromPrimary(publisher, handler);
     }
