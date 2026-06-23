@@ -138,7 +138,15 @@ class SubConnection extends Connection {
             }
         }
         catch (IOException e) {
-            logger.error("setMaxInFlight failed. con:{}", stateDesc(), e);
+            if (isReading) {
+                logger.error("setMaxInFlight failed. con:{}", stateDesc(), e);
+            }
+            else {
+                // The read thread already closed the socket (peer EOF / nsqd shutdown), so flush() fails
+                // on a closed connection. This is a benign teardown race - the connection is rebuilt by
+                // checkConnections - so log below ERROR to avoid Sentry capturing it as an issue.
+                logger.debug("setMaxInFlight failed on closed connection. con:{}", stateDesc(), e);
+            }
             close();
         }
     }
